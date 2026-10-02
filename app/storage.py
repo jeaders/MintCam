@@ -43,12 +43,12 @@ class Storage:
         return f"video_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
 
     @classmethod
-    def save_photo(cls, frame, path: Path | None = None) -> Path | None:
+    def save_photo(cls, frame, path: Path | None = None, quality: int = 95) -> Path | None:
         if path is None:
             path = cls.photos_dir() / cls.photo_filename()
         try:
             import cv2
-            cv2.imwrite(str(path), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            cv2.imwrite(str(path), frame, [cv2.IMWRITE_JPEG_QUALITY, int(quality)])
             logger.info("Foto salvata in %s", path)
             return path
         except Exception as exc:

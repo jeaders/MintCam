@@ -67,6 +67,15 @@ class MainWindow(QMainWindow):
         self._width: int = 640
         self._height: int = 480
         self._fullscreen: bool = False
+        self._mirror: bool = False
+        self._zoom: int = 100
+        self._grid: bool = False
+        self._burst_count: int = 1
+        self._pause_preview: bool = False
+        self._clip_seconds: int = 0
+        self._photo_quality: int = 95
+        self._burst_index: int = 0
+        self._burst_timer: Optional[QTimer] = None
 
         self._recent_media: list[Path] = []
         self._max_recent = 8
@@ -117,6 +126,7 @@ class MainWindow(QMainWindow):
         sidebar_lay.addWidget(self._build_card_format())
         sidebar_lay.addWidget(self._build_card_timer())
         sidebar_lay.addWidget(self._build_card_adjustments())
+        sidebar_lay.addWidget(self._build_card_tools())
         sidebar_lay.addWidget(self._build_card_general())
         sidebar_lay.addStretch()
 
@@ -224,7 +234,7 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_filter = QComboBox()
-        self.combo_filter.addItems(["Normale", "Bianco e nero", "Sepia", "Negativo", "Contrasto elevato", "Specchio orizzontale"])
+        self.combo_filter.addItems(["Normale", "Bianco e nero", "Sepia", "Negativo", "Contrasto elevato"])
         lay.addWidget(self.combo_filter)
         return grp
 
@@ -259,6 +269,51 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.slider_contrast["slider"])
         lay.addWidget(self.slider_saturation["label"])
         lay.addWidget(self.slider_saturation["slider"])
+        return grp
+
+    def _build_card_tools(self) -> QGroupBox:
+        grp = QGroupBox("Strumenti")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
+        self.chk_mirror = QCheckBox("Specchio")
+        self.chk_mirror.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_mirror.toggled.connect(self._on_mirror_changed)
+        lay.addWidget(self.chk_mirror)
+        self.chk_grid = QCheckBox("Griglia")
+        self.chk_grid.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_grid.toggled.connect(self._on_grid_changed)
+        lay.addWidget(self.chk_grid)
+        self.chk_pause = QCheckBox("Pausa anteprima")
+        self.chk_pause.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_pause.toggled.connect(self._on_pause_changed)
+        lay.addWidget(self.chk_pause)
+        self.combo_burst = QComboBox()
+        self.combo_burst.addItems(["Singolo", "Burst 3", "Burst 5", "Burst 10"])
+        self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
+        lay.addWidget(QLabel("Modalità scatto:"))
+        lay.addWidget(self.combo_burst)
+        self.spin_clip = QSpinBox()
+        self.spin_clip.setRange(0, 3600)
+        self.spin_clip.setSpecialValueText("Illimitato")
+        self.spin_clip.setValue(0)
+        self.spin_clip.valueChanged.connect(self._on_clip_changed)
+        lay.addWidget(QLabel("Durata max registrazione (s):"))
+        lay.addWidget(self.spin_clip)
+        self.spin_quality = QSpinBox()
+        self.spin_quality.setRange(50, 100)
+        self.spin_quality.setValue(95)
+        self.spin_quality.valueChanged.connect(self._on_quality_changed)
+        lay.addWidget(QLabel("Qualità foto:"))
+        lay.addWidget(self.spin_quality)
+        self.combo_folder = QComboBox()
+        self.combo_folder.addItems(["Foto", "Registrazioni"])
+        self.combo_folder.currentIndexChanged.connect(self._on_folder_changed)
+        lay.addWidget(QLabel("Cartella apertura:"))
+        lay.addWidget(self.combo_folder)
+        btn_reset_adj = QPushButton("Reset regolazioni")
+        btn_reset_adj.setObjectName("ghost")
+        btn_reset_adj.clicked.connect(self._reset_adjustments)
+        lay.addWidget(btn_reset_adj)
         return grp
 
     def _build_card_general(self) -> QGroupBox:
@@ -308,9 +363,16 @@ class MainWindow(QMainWindow):
         # Flash
         self.flash = QWidget(self.preview_container)
         self.flash.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.flash.setStyleSheet("background-color: rgba(255,255,255,220); border-radius: 12px;")
+        self.flash.setStyleSheet("background-color: rgba(255,255,255,200); border-radius: 12px;")
         self.flash.hide()
         parent_layout.addWidget(self.flash, 0, 0, 1, 1)
+
+        # Grid
+        self.grid_overlay = QWidget(self.preview_container)
+        self.grid_overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.grid_overlay.setStyleSheet("background-color: transparent;")
+        self.grid_overlay.hide()
+        parent_layout.addWidget(self.grid_overlay, 0, 0, 1, 1)
 
         # Countdown
         self.lbl_countdown = QLabel(self.preview_container)
@@ -404,6 +466,19 @@ class MainWindow(QMainWindow):
         self.slider_brightness["slider"].setValue(self._brightness)
         self.slider_contrast["slider"].setValue(self._contrast)
         self.slider_saturation["slider"].setValue(self._saturation)
+        self._mirror = self.settings.get("mirror", False)
+        self._grid = self.settings.get("grid", False)
+        self._burst_count = self.settings.get("burst_count", 1)
+        self._pause_preview = self.settings.get("pause_preview", False)
+        self._clip_seconds = self.settings.get("clip_seconds", 0)
+        self._photo_quality = self.settings.get("photo_quality", 95)
+        self.chk_mirror.setChecked(self._mirror)
+        self.chk_grid.setChecked(self._grid)
+        self.chk_pause.setChecked(self._pause_preview)
+        self.spin_clip.setValue(self._clip_seconds)
+        self.spin_quality.setValue(self._photo_quality)
+        burst_map = {1: 0, 3: 1, 5: 2, 10: 3}
+        self.combo_burst.setCurrentIndex(burst_map.get(self._burst_count, 0))
         self._load_autostart_state()
 
     # ------------------------------------------------------------------
@@ -489,6 +564,47 @@ class MainWindow(QMainWindow):
         self._saturation = value
         self.settings.set("saturation", value)
 
+    def _on_mirror_changed(self, checked: bool) -> None:
+        self._mirror = checked
+        self.settings.set("mirror", checked)
+
+    def _on_grid_changed(self, checked: bool) -> None:
+        self._grid = checked
+        self.settings.set("grid", checked)
+        self._position_overlays()
+
+    def _on_pause_changed(self, checked: bool) -> None:
+        self._pause_preview = checked
+        self.settings.set("pause_preview", checked)
+
+    def _on_burst_changed(self, index: int) -> None:
+        self._burst_count = [1, 3, 5, 10][index] if index < 4 else 1
+        self.settings.set("burst_count", self._burst_count)
+
+    def _on_clip_changed(self, value: int) -> None:
+        self._clip_seconds = value
+        self.settings.set("clip_seconds", value)
+
+    def _on_quality_changed(self, value: int) -> None:
+        self._photo_quality = value
+        self.settings.set("photo_quality", value)
+
+    def _on_folder_changed(self, index: int) -> None:
+        folder = Storage.photos_dir() if index == 0 else Storage.recordings_dir()
+        Storage.open_folder(folder)
+
+    def _reset_adjustments(self) -> None:
+        self._brightness = 0
+        self._contrast = 0
+        self._saturation = 0
+        self.slider_brightness["slider"].setValue(0)
+        self.slider_contrast["slider"].setValue(0)
+        self.slider_saturation["slider"].setValue(0)
+        self.settings.set("brightness", 0)
+        self.settings.set("contrast", 0)
+        self.settings.set("saturation", 0)
+        self._show_status("Regolazioni reset")
+
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame
 
@@ -496,12 +612,23 @@ class MainWindow(QMainWindow):
     # Preview
     # ------------------------------------------------------------------
     def _update_preview(self) -> None:
+        if getattr(self, "_pause_preview", False):
+            return
         frame = self._current_frame
         if frame is None:
             return
         processed = self._apply_adjustments(self._apply_filter(frame.copy()))
         processed = self._apply_format(processed)
+        if self._mirror:
+            processed = cv2.flip(processed, 1)
+        if self._grid:
+            processed = self._draw_grid_on_frame(processed)
         self._processed_frame = processed
+        if self._recording and self.recorder.is_recording():
+            self.recorder.write(processed)
+            if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
+                self._stop_recording()
+                self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
         h, w = rgb.shape[:2]
         img = QImage(rgb.data, w, h, w * 3, QImage.Format_RGB888).copy()
@@ -527,8 +654,6 @@ class MainWindow(QMainWindow):
             l = clahe.apply(l)
             lab = cv2.merge([l, a, b])
             return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-        if f == "Specchio orizzontale":
-            return cv2.flip(frame, 1)
         return frame
 
     def _apply_adjustments(self, frame: np.ndarray) -> np.ndarray:
@@ -565,6 +690,20 @@ class MainWindow(QMainWindow):
             x1 = max(0, (w - new_w) // 2)
             return frame[:new_h, x1 : x1 + new_w]
 
+    def _draw_grid_on_frame(self, frame: np.ndarray) -> np.ndarray:
+        h, w = frame.shape[:2]
+        overlay = frame.copy()
+        color = (0, 255, 0)
+        thickness = 1
+        rows, cols = 3, 3
+        for i in range(1, cols):
+            x = int(w * i / cols)
+            cv2.line(overlay, (x, 0), (x, h), color, thickness)
+        for i in range(1, rows):
+            y = int(h * i / rows)
+            cv2.line(overlay, (0, y), (w, y), color, thickness)
+        return overlay
+
     def _position_overlays(self) -> None:
         if hasattr(self, "lbl_countdown"):
             self.lbl_countdown.setFixedSize(self.preview.width() // 2, self.preview.height() // 3)
@@ -577,6 +716,16 @@ class MainWindow(QMainWindow):
             self.lbl_rec.adjustSize()
         if hasattr(self, "flash"):
             self.flash.setGeometry(self.preview_container.rect())
+        if hasattr(self, "grid_overlay"):
+            self.grid_overlay.setGeometry(self.preview_container.rect())
+            self._draw_grid()
+
+    def _draw_grid(self) -> None:
+        if not getattr(self, "_grid", False):
+            self.grid_overlay.hide()
+            return
+        self.grid_overlay.show()
+        self.grid_overlay.update()
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
@@ -621,28 +770,46 @@ class MainWindow(QMainWindow):
             self._show_status("Nessun frame disponibile per la foto", error=True)
             return
         self._flash_effect()
-        path = Storage.save_photo(frame)
-        if path is None:
-            self._show_status("Errore salvataggio foto", error=True)
+        count = self._burst_count
+        if count <= 1:
+            path = Storage.save_photo(frame, quality=self._photo_quality)
+            if path is None:
+                self._show_status("Errore salvataggio foto", error=True)
+                return
+            self._show_status(f"Foto salvata: {path}")
+            self.status.showMessage(f"Foto salvata: {path}", 5000)
+            self._add_recent_media(path)
+        else:
+            self._burst_index = 0
+            self._burst_frames = [frame.copy() for _ in range(count)]
+            self._burst_timer = QTimer(self)
+            self._burst_timer.setInterval(300)
+            self._burst_timer.timeout.connect(self._save_next_burst)
+            self._burst_timer.start()
+            self.btn_photo.setEnabled(False)
+            self._show_status(f"Burst {count} foto…")
+
+    def _save_next_burst(self) -> None:
+        if self._burst_index >= len(self._burst_frames):
+            self._burst_timer.stop()
+            self._burst_timer.deleteLater()
+            self._burst_timer = None
+            self.btn_photo.setEnabled(True)
+            self._show_status(f"Burst completato: {len(self._burst_frames)} foto")
             return
-        self._show_status(f"Foto salvata: {path}")
-        self.status.showMessage(f"Foto salvata: {path}", 5000)
-        self._add_recent_media(path)
+        frame = self._burst_frames[self._burst_index]
+        path = Storage.save_photo(frame, quality=self._photo_quality)
+        self._burst_index += 1
+        if path is not None:
+            self._add_recent_media(path)
 
     def _flash_effect(self) -> None:
         self.flash.show()
         self.flash.setGeometry(self.preview_container.rect())
-        effect = QGraphicsOpacityEffect(self.flash)
-        self.flash.setGraphicsEffect(effect)
-        anim = QPropertyAnimation(effect, b"opacity")
-        anim.setDuration(350)
-        anim.setStartValue(0.9)
-        anim.setEndValue(0.0)
-        anim.setEasingCurve(QEasingCurve.OutCubic)
-        anim.finished.connect(self._clear_flash)
-        anim.start(Qt.DeleteWhenStopped)
+        self.flash.raise_()
+        QTimer.singleShot(80, self._fade_flash)
 
-    def _clear_flash(self) -> None:
+    def _fade_flash(self) -> None:
         self.flash.hide()
         self.flash.setGraphicsEffect(None)
 
@@ -753,7 +920,10 @@ class MainWindow(QMainWindow):
     # Folder / Fullscreen
     # ------------------------------------------------------------------
     def _on_open_folder(self) -> None:
-        Storage.open_folder(Storage.photos_dir())
+        if self.combo_folder.currentIndex() == 0:
+            Storage.open_folder(Storage.photos_dir())
+        else:
+            Storage.open_folder(Storage.recordings_dir())
 
     def _toggle_fullscreen(self) -> None:
         self._fullscreen = not self._fullscreen
@@ -852,6 +1022,13 @@ class MainWindow(QMainWindow):
         self.slider_brightness["slider"].valueChanged.connect(self._on_brightness_changed)
         self.slider_contrast["slider"].valueChanged.connect(self._on_contrast_changed)
         self.slider_saturation["slider"].valueChanged.connect(self._on_saturation_changed)
+        self.chk_mirror.toggled.connect(self._on_mirror_changed)
+        self.chk_grid.toggled.connect(self._on_grid_changed)
+        self.chk_pause.toggled.connect(self._on_pause_changed)
+        self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
+        self.spin_clip.valueChanged.connect(self._on_clip_changed)
+        self.spin_quality.valueChanged.connect(self._on_quality_changed)
+        self.combo_folder.currentIndexChanged.connect(self._on_folder_changed)
 
     # ------------------------------------------------------------------
     # Cleanup

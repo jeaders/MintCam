@@ -18,6 +18,13 @@ DEFAULTS: dict[str, Any] = {
     "last_photo_dir": "",
     "last_recording_dir": "",
     "autostart": False,
+    "mirror": False,
+    "zoom": 100,
+    "grid": False,
+    "burst_count": 1,
+    "pause_preview": False,
+    "clip_seconds": 0,
+    "photo_quality": 95,
 }
 
 

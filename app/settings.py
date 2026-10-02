@@ -17,6 +17,7 @@ DEFAULTS: dict[str, Any] = {
     "saturation": 0,
     "last_photo_dir": "",
     "last_recording_dir": "",
+    "autostart": False,
 }
 
 

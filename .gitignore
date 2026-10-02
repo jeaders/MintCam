@@ -9,6 +9,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+build-deb/
 logs/
 recordings/
 photos/

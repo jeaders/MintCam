@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MintCam
+Comment=Webcam app for Linux Mint
+Exec=mintcam
+Icon=camera-photo
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;Recorder;
+Keywords=webcam;camera;video;recorder;

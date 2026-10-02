@@ -1,31 +1,35 @@
 import logging
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
-    QFileDialog,
     QFrame,
+    QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSlider,
+    QSizePolicy,
     QSpinBox,
     QStatusBar,
     QVBoxLayout,
     QWidget,
 )
 
-from app.camera import CameraWorker, RESOLUTIONS
+from app.camera import CameraWorker, RESOLUTIONS, enumerate_cameras
 from app.recorder import Recorder
 from app.settings import Settings
 from app.storage import Storage
@@ -38,8 +42,11 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("MintCam")
-        self.resize(1000, 700)
-        self.setMinimumSize(720, 480)
+        self.resize(1200, 780)
+        self.setMinimumSize(860, 620)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+        self.setStyleSheet("QMainWindow { border: none; }")
 
         self.settings = Settings()
         self.recorder = Recorder()
@@ -59,10 +66,14 @@ class MainWindow(QMainWindow):
         self._fps: int = 30
         self._width: int = 640
         self._height: int = 480
+        self._fullscreen: bool = False
+
+        self._recent_media: list[Path] = []
+        self._max_recent = 8
 
         self._init_ui()
         self._init_camera()
-        self._start_preview_timer()
+        self._load_recent_media()
 
     # ------------------------------------------------------------------
     # UI setup
@@ -72,146 +83,312 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         root = QGridLayout(central)
-        root.setContentsMargins(16, 16, 16, 12)
-        root.setSpacing(12)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # Background frame
+        bg = QFrame()
+        bg.setStyleSheet("background-color: #0f1115;")
+        bg_lay = QGridLayout(bg)
+        bg_lay.setContentsMargins(16, 12, 16, 12)
+        bg_lay.setSpacing(12)
+        root.addWidget(bg, 0, 0, 1, 1)
 
         # Header
-        header = QFrame()
-        header_lay = QHBoxLayout(header)
-        header_lay.setContentsMargins(0, 0, 0, 0)
-        title = QLabel("MintCam")
-        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #4fc3f7;")
-        self.lbl_status = QLabel("Webcam: inizializzazione...")
-        self.lbl_status.setStyleSheet("color: #aaaaaa;")
-        self.lbl_info = QLabel("Risoluzione: - | FPS: -")
-        self.lbl_info.setStyleSheet("color: #aaaaaa;")
-        header_lay.addWidget(title)
-        header_lay.addStretch()
-        header_lay.addWidget(self.lbl_status)
-        header_lay.addSpacing(16)
-        header_lay.addWidget(self.lbl_info)
-        root.addWidget(header, 0, 0, 1, 2)
+        header = self._build_header()
+        bg_lay.addWidget(header, 0, 0, 1, 2)
 
-        # Preview area
+        # Sidebar
+        sidebar_scroll = QScrollArea()
+        sidebar_scroll.setWidgetResizable(True)
+        sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        sidebar_scroll.setFrameShape(QFrame.NoFrame)
+        sidebar = QWidget()
+        sidebar.setMinimumWidth(260)
+        sidebar.setMaximumWidth(320)
+        sidebar_lay = QVBoxLayout(sidebar)
+        sidebar_lay.setSpacing(10)
+        sidebar_lay.setContentsMargins(0, 0, 0, 0)
+        sidebar_scroll.setWidget(sidebar)
+
+        sidebar_lay.addWidget(self._build_card_camera())
+        sidebar_lay.addWidget(self._build_card_resolution())
+        sidebar_lay.addWidget(self._build_card_filter())
+        sidebar_lay.addWidget(self._build_card_format())
+        sidebar_lay.addWidget(self._build_card_timer())
+        sidebar_lay.addWidget(self._build_card_adjustments())
+        sidebar_lay.addWidget(self._build_card_general())
+        sidebar_lay.addStretch()
+
+        bg_lay.addWidget(sidebar_scroll, 1, 1, 1, 1)
+
+        # Preview container
+        preview_container = QWidget()
+        preview_container.setStyleSheet("background-color: #0f1115;")
+        preview_lay = QVBoxLayout(preview_container)
+        preview_lay.setContentsMargins(0, 0, 0, 0)
+        preview_lay.setSpacing(0)
+
+        self.preview_container = QWidget()
+        self.preview_container.setStyleSheet("background-color: #0f1115;")
+        preview_container_lay = QGridLayout(self.preview_container)
+        preview_container_lay.setContentsMargins(0, 0, 0, 0)
+        preview_container_lay.setSpacing(0)
+
         self.preview = QLabel("Anteprima non disponibile")
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumSize(640, 360)
         self.preview.setStyleSheet(
-            "background-color: #111111; color: #777777; font-size: 18px; border-radius: 8px;"
+            "background-color: #0a0c10; color: #6b7280; font-size: 16px; border-radius: 12px;"
         )
         self.preview.setScaledContents(False)
-        root.addWidget(self.preview, 1, 0, 1, 1)
+        self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        preview_container_lay.addWidget(self.preview, 0, 0, 1, 1)
 
-        # Countdown / REC overlay labels (positioned on preview via parent widget stack)
-        self.lbl_countdown = QLabel(self.preview)
-        self.lbl_countdown.setAlignment(Qt.AlignCenter)
-        self.lbl_countdown.setStyleSheet(
-            "background-color: rgba(0,0,0,160); color: #ff5252; font-size: 72px; font-weight: bold; border-radius: 12px; padding: 20px;"
-        )
-        self.lbl_countdown.hide()
+        # Overlays
+        self._build_overlays(preview_container_lay)
 
-        self.lbl_rec = QLabel(self.preview)
-        self.lbl_rec.setAlignment(Qt.AlignCenter)
-        self.lbl_rec.setStyleSheet(
-            "background-color: rgba(200,0,0,180); color: white; font-size: 20px; font-weight: bold; padding: 6px 12px; border-radius: 6px;"
-        )
-        self.lbl_rec.hide()
+        preview_lay.addWidget(self.preview_container, 1)
 
-        # Controls
-        controls = QFrame()
-        controls_lay = QVBoxLayout(controls)
-        controls_lay.setSpacing(10)
+        # Recent media strip
+        self.recent_strip = self._build_recent_strip()
+        preview_lay.addWidget(self.recent_strip, 2)
 
-        # Camera selection
-        grp_cam = QGroupBox("Fotocamera")
-        cam_lay = QVBoxLayout(grp_cam)
+        bg_lay.addWidget(preview_container, 1, 0, 1, 1)
+
+        # Footer
+        footer = self._build_footer()
+        bg_lay.addWidget(footer, 2, 0, 1, 2)
+
+        # Status bar
+        self.status = QStatusBar()
+        self.status.setStyleSheet("QStatusBar { background-color: #0f1115; color: #9aa0ac; padding: 4px 12px; }")
+        self.setStatusBar(self.status)
+
+        # Restore settings
+        self._restore_settings()
+
+        # Shortcuts
+        self._install_shortcuts()
+        self._connect_signals()
+
+    def _build_header(self) -> QWidget:
+        header = QWidget()
+        header.setStyleSheet("background-color: #0f1115;")
+        lay = QHBoxLayout(header)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(16)
+
+        logo = QLabel("📷")
+        logo.setStyleSheet("font-size: 22px; padding: 4px;")
+        title = QLabel("MintCam")
+        title.setStyleSheet("font-size: 20px; font-weight: 800; color: #5cd962; letter-spacing: -0.3px;")
+
+        self.lbl_status = QLabel("Inizializzazione webcam…")
+        self.lbl_status.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.lbl_info = QLabel("")
+        self.lbl_info.setStyleSheet("color: #6b7280; font-size: 12px;")
+
+        lay.addWidget(logo)
+        lay.addWidget(title)
+        lay.addStretch()
+        lay.addWidget(self.lbl_status)
+        lay.addWidget(self.lbl_info)
+        return header
+
+    def _build_card_camera(self) -> QGroupBox:
+        grp = QGroupBox("Fotocamera")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
         self.combo_camera = QComboBox()
-        cam_lay.addWidget(self.combo_camera)
-        controls_lay.addWidget(grp_cam)
+        lay.addWidget(self.combo_camera)
+        return grp
 
-        # Resolution / FPS
-        grp_res = QGroupBox("Risoluzione e FPS")
-        res_lay = QVBoxLayout(grp_res)
+    def _build_card_resolution(self) -> QGroupBox:
+        grp = QGroupBox("Risoluzione e FPS")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
         self.combo_resolution = QComboBox()
         self.combo_resolution.addItems(list(RESOLUTIONS.keys()))
         self.combo_fps = QSpinBox()
         self.combo_fps.setRange(1, 120)
         self.combo_fps.setValue(30)
-        res_lay.addWidget(QLabel("Risoluzione:"))
-        res_lay.addWidget(self.combo_resolution)
-        res_lay.addWidget(QLabel("FPS:"))
-        res_lay.addWidget(self.combo_fps)
-        controls_lay.addWidget(grp_res)
+        lay.addWidget(QLabel("Risoluzione:"))
+        lay.addWidget(self.combo_resolution)
+        lay.addWidget(QLabel("FPS:"))
+        lay.addWidget(self.combo_fps)
+        return grp
 
-        # Filter
-        grp_filter = QGroupBox("Filtro")
-        filter_lay = QVBoxLayout(grp_filter)
+    def _build_card_filter(self) -> QGroupBox:
+        grp = QGroupBox("Filtro")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
         self.combo_filter = QComboBox()
         self.combo_filter.addItems(["Normale", "Bianco e nero", "Sepia", "Negativo", "Contrasto elevato", "Specchio orizzontale"])
-        filter_lay.addWidget(self.combo_filter)
-        controls_lay.addWidget(grp_filter)
+        lay.addWidget(self.combo_filter)
+        return grp
 
-        # Format
-        grp_format = QGroupBox("Formato")
-        format_lay = QVBoxLayout(grp_format)
+    def _build_card_format(self) -> QGroupBox:
+        grp = QGroupBox("Formato")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
         self.combo_format = QComboBox()
         self.combo_format.addItems(["16:9", "4:3", "9:16"])
-        format_lay.addWidget(self.combo_format)
-        controls_lay.addWidget(grp_format)
+        lay.addWidget(self.combo_format)
+        return grp
 
-        # Timer
-        grp_timer = QGroupBox("Timer foto")
-        timer_lay = QVBoxLayout(grp_timer)
+    def _build_card_timer(self) -> QGroupBox:
+        grp = QGroupBox("Timer foto")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
         self.combo_timer = QComboBox()
         self.combo_timer.addItems(["Nessun timer", "3 secondi", "5 secondi", "10 secondi"])
-        timer_lay.addWidget(self.combo_timer)
-        controls_lay.addWidget(grp_timer)
+        lay.addWidget(self.combo_timer)
+        return grp
 
-        # Brightness / Contrast / Saturation
-        grp_adj = QGroupBox("Regolazioni")
-        adj_lay = QVBoxLayout(grp_adj)
-        self.slider_brightness = self._make_slider(-100, 100, 0)
-        self.slider_contrast = self._make_slider(-100, 100, 0)
-        self.slider_saturation = self._make_slider(-100, 100, 0)
-        adj_lay.addWidget(QLabel("Luminosità:"))
-        adj_lay.addWidget(self.slider_brightness)
-        adj_lay.addWidget(QLabel("Contrasto:"))
-        adj_lay.addWidget(self.slider_contrast)
-        adj_lay.addWidget(QLabel("Saturazione:"))
-        adj_lay.addWidget(self.slider_saturation)
-        controls_lay.addWidget(grp_adj)
+    def _build_card_adjustments(self) -> QGroupBox:
+        grp = QGroupBox("Regolazioni")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(10)
+        self.slider_brightness = self._make_slider(-100, 100, 0, "Luminosità")
+        self.slider_contrast = self._make_slider(-100, 100, 0, "Contrasto")
+        self.slider_saturation = self._make_slider(-100, 100, 0, "Saturazione")
+        lay.addWidget(self.slider_brightness["label"])
+        lay.addWidget(self.slider_brightness["slider"])
+        lay.addWidget(self.slider_contrast["label"])
+        lay.addWidget(self.slider_contrast["slider"])
+        lay.addWidget(self.slider_saturation["label"])
+        lay.addWidget(self.slider_saturation["slider"])
+        return grp
 
-        controls_lay.addStretch()
-        root.addWidget(controls, 1, 1, 1, 1)
+    def _build_card_general(self) -> QGroupBox:
+        grp = QGroupBox("Generale")
+        lay = QVBoxLayout(grp)
+        lay.setSpacing(8)
+        self.chk_autostart = QCheckBox("Avvio automatico con il sistema")
+        self.chk_autostart.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_autostart.toggled.connect(self._on_autostart_changed)
+        lay.addWidget(self.chk_autostart)
+        return grp
 
-        # Footer
-        footer = QFrame()
-        footer_lay = QHBoxLayout(footer)
-        footer_lay.setSpacing(12)
+    def _make_slider(self, minv: int, maxv: int, value: int, name: str) -> dict:
+        label = QLabel(f"{name}: {value}")
+        label.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        s = QSlider(Qt.Horizontal)
+        s.setRange(minv, maxv)
+        s.setValue(value)
+        s.setTickPosition(QSlider.TicksBelow)
+        s.setTickInterval(25)
+        s.valueChanged.connect(lambda v: label.setText(f"{name}: {v}"))
+        return {"label": label, "slider": s}
+
+    def _build_recent_strip(self) -> QWidget:
+        strip = QWidget()
+        strip.setFixedHeight(90)
+        strip.setStyleSheet("background-color: #0f1115; border-top: 1px solid #1e222b;")
+        lay = QHBoxLayout(strip)
+        lay.setContentsMargins(4, 6, 4, 6)
+        lay.setSpacing(8)
+        lbl = QLabel("Recenti")
+        lbl.setStyleSheet("color: #6b7280; font-size: 11px; font-weight: 700;")
+        lay.addWidget(lbl)
+        self._recent_labels: list[QLabel] = []
+        for _ in range(self._max_recent):
+            thumb = QLabel()
+            thumb.setFixedSize(72, 54)
+            thumb.setStyleSheet("background-color: #1e222b; border-radius: 8px; border: 1px solid #252a35;")
+            thumb.setAlignment(Qt.AlignCenter)
+            thumb.setToolTip("")
+            lay.addWidget(thumb)
+            self._recent_labels.append(thumb)
+        lay.addStretch()
+        return strip
+
+    def _build_overlays(self, parent_layout) -> None:
+        # Flash
+        self.flash = QWidget(self.preview_container)
+        self.flash.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.flash.setStyleSheet("background-color: rgba(255,255,255,220); border-radius: 12px;")
+        self.flash.hide()
+        parent_layout.addWidget(self.flash, 0, 0, 1, 1)
+
+        # Countdown
+        self.lbl_countdown = QLabel(self.preview_container)
+        self.lbl_countdown.setAlignment(Qt.AlignCenter)
+        self.lbl_countdown.setStyleSheet(
+            "background-color: rgba(15,17,21,200); color: #5cd962; font-size: 80px; font-weight: 900;"
+            "border: 3px solid #5cd962; border-radius: 20px; padding: 20px;"
+        )
+        self.lbl_countdown.hide()
+        parent_layout.addWidget(self.lbl_countdown, 0, 0, 1, 1)
+
+        # REC
+        self.lbl_rec = QLabel(self.preview_container)
+        self.lbl_rec.setAlignment(Qt.AlignCenter)
+        self.lbl_rec.setStyleSheet(
+            "background-color: rgba(239,68,68,220); color: white; font-size: 14px; font-weight: 800;"
+            "padding: 8px 14px; border-radius: 20px;"
+        )
+        self.lbl_rec.hide()
+        parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
+
+    def _build_footer(self) -> QWidget:
+        footer = QWidget()
+        footer.setStyleSheet("background-color: #0f1115; border-top: 1px solid #1e222b;")
+        lay = QHBoxLayout(footer)
+        lay.setContentsMargins(16, 12, 16, 12)
+        lay.setSpacing(10)
+
         self.btn_photo = QPushButton("Scatta foto")
         self.btn_photo.setObjectName("primary")
-        self.btn_photo.setMinimumHeight(48)
+        self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
+
         self.btn_record = QPushButton("Avvia registrazione")
         self.btn_record.setObjectName("record")
-        self.btn_record.setMinimumHeight(48)
+        self.btn_record.setMinimumHeight(44)
         self.btn_record.clicked.connect(self._on_record_toggle)
-        self.btn_folder = QPushButton("Apri cartella foto")
-        self.btn_folder.setMinimumHeight(48)
+
+        self.btn_folder = QPushButton("Apri cartella")
+        self.btn_folder.setObjectName("ghost")
+        self.btn_folder.setMinimumHeight(44)
         self.btn_folder.clicked.connect(self._on_open_folder)
+
+        self.btn_fullscreen = QPushButton("Schermo intero")
+        self.btn_fullscreen.setObjectName("ghost")
+        self.btn_fullscreen.setMinimumHeight(44)
+        self.btn_fullscreen.clicked.connect(self._toggle_fullscreen)
+
         self.btn_exit = QPushButton("Esci")
-        self.btn_exit.setMinimumHeight(48)
+        self.btn_exit.setObjectName("ghost")
+        self.btn_exit.setMinimumHeight(44)
         self.btn_exit.clicked.connect(self.close)
-        footer_lay.addWidget(self.btn_photo)
-        footer_lay.addWidget(self.btn_record)
-        footer_lay.addWidget(self.btn_folder)
-        footer_lay.addWidget(self.btn_exit)
-        root.addWidget(footer, 2, 0, 1, 2)
 
-        self.status = QStatusBar()
-        self.setStatusBar(self.status)
+        lay.addWidget(self.btn_photo, 1)
+        lay.addWidget(self.btn_record, 1)
+        lay.addWidget(self.btn_folder)
+        lay.addWidget(self.btn_fullscreen)
+        lay.addWidget(self.btn_exit)
+        return footer
 
-        # Restore settings
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _install_shortcuts(self) -> None:
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        QShortcut(QKeySequence("Space"), self, self._on_photo)
+        QShortcut(QKeySequence("R"), self, self._on_record_toggle)
+        QShortcut(QKeySequence("F"), self, self._toggle_fullscreen)
+        QShortcut(QKeySequence("Esc"), self, self._exit_fullscreen_or_close)
+
+    def _exit_fullscreen_or_close(self) -> None:
+        if self._fullscreen:
+            self._toggle_fullscreen()
+        else:
+            self.close()
+
+    def _restore_settings(self) -> None:
         self.combo_camera.setCurrentIndex(self.settings.get("camera_index", 0))
         self.combo_resolution.setCurrentText(self.settings.get("resolution", "640x480"))
         self.combo_fps.setValue(self.settings.get("fps", 30))
@@ -221,30 +398,13 @@ class MainWindow(QMainWindow):
         self._current_filter = self.combo_filter.currentText()
         self._current_format = self.combo_format.currentText()
         self._fps = self.combo_fps.value()
-
-        # Connections
-        self.combo_camera.currentIndexChanged.connect(self._on_camera_changed)
-        self.combo_resolution.currentTextChanged.connect(self._on_resolution_changed)
-        self.combo_fps.valueChanged.connect(self._on_fps_changed)
-        self.combo_filter.currentTextChanged.connect(self._on_filter_changed)
-        self.combo_format.currentTextChanged.connect(self._on_format_changed)
-        self.combo_timer.currentIndexChanged.connect(self._on_timer_changed)
-        self.slider_brightness.valueChanged.connect(self._on_brightness_changed)
-        self.slider_contrast.valueChanged.connect(self._on_contrast_changed)
-        self.slider_saturation.valueChanged.connect(self._on_saturation_changed)
-
-        # Preview update timer
-        self._preview_timer = QTimer(self)
-        self._preview_timer.setInterval(int(1000 / max(self._fps, 1)))
-        self._preview_timer.timeout.connect(self._update_preview)
-
-    def _make_slider(self, minv: int, maxv: int, value: int) -> QSlider:
-        s = QSlider(Qt.Horizontal)
-        s.setRange(minv, maxv)
-        s.setValue(value)
-        s.setTickPosition(QSlider.TicksBelow)
-        s.setTickInterval(25)
-        return s
+        self._brightness = self.settings.get("brightness", 0)
+        self._contrast = self.settings.get("contrast", 0)
+        self._saturation = self.settings.get("saturation", 0)
+        self.slider_brightness["slider"].setValue(self._brightness)
+        self.slider_contrast["slider"].setValue(self._contrast)
+        self.slider_saturation["slider"].setValue(self._saturation)
+        self._load_autostart_state()
 
     # ------------------------------------------------------------------
     # Camera
@@ -256,25 +416,19 @@ class MainWindow(QMainWindow):
         self.camera.camera_changed.connect(self._on_camera_changed_signal)
         self._enumerate_cameras()
         self.camera.start()
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setInterval(int(1000 / max(self._fps, 1)))
+        self._preview_timer.timeout.connect(self._update_preview)
         self._preview_timer.start()
 
     def _enumerate_cameras(self) -> None:
-        import glob
+        from app.camera import enumerate_cameras
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
-        found = False
-        for path in sorted(glob.glob("/dev/video*")):
-            idx = int(path.replace("/dev/video", ""))
-            cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
-            ok = cap.isOpened()
-            if ok:
-                ret, _ = cap.read()
-                ok = ret
-            cap.release()
-            if ok:
-                self.combo_camera.addItem(f"Webcam {idx}", idx)
-                found = True
-        if not found:
+        devices = enumerate_cameras()
+        for idx, label in devices:
+            self.combo_camera.addItem(label, idx)
+        if not devices:
             self.combo_camera.addItem("Nessuna webcam rilevata", -1)
         self.combo_camera.blockSignals(False)
 
@@ -286,7 +440,7 @@ class MainWindow(QMainWindow):
         self.settings.set("camera_index", idx)
         if self.camera is not None:
             self.camera.set_device(idx, self.combo_camera.currentText())
-        self._show_status(f"Webcam selezionata: {self.combo_camera.currentText()}")
+        self._show_status(f"Webcam: {self.combo_camera.currentText()}")
 
     def _on_camera_changed_signal(self, index: int, name: str) -> None:
         self._show_status(f"Webcam cambiata: {name or f'/dev/video{index}'}")
@@ -341,9 +495,6 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Preview
     # ------------------------------------------------------------------
-    def _start_preview_timer(self) -> None:
-        self._preview_timer.start()
-
     def _update_preview(self) -> None:
         frame = self._current_frame
         if frame is None:
@@ -415,20 +566,24 @@ class MainWindow(QMainWindow):
             return frame[:new_h, x1 : x1 + new_w]
 
     def _position_overlays(self) -> None:
-        self.lbl_countdown.setFixedSize(self.preview.width() // 2, self.preview.height() // 3)
-        self.lbl_countdown.move(
-            (self.preview.width() - self.lbl_countdown.width()) // 2,
-            (self.preview.height() - self.lbl_countdown.height()) // 2,
-        )
-        self.lbl_rec.move(12, 12)
-        self.lbl_rec.adjustSize()
+        if hasattr(self, "lbl_countdown"):
+            self.lbl_countdown.setFixedSize(self.preview.width() // 2, self.preview.height() // 3)
+            self.lbl_countdown.move(
+                (self.preview.width() - self.lbl_countdown.width()) // 2,
+                (self.preview.height() - self.lbl_countdown.height()) // 2,
+            )
+        if hasattr(self, "lbl_rec"):
+            self.lbl_rec.move(16, 16)
+            self.lbl_rec.adjustSize()
+        if hasattr(self, "flash"):
+            self.flash.setGeometry(self.preview_container.rect())
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self._position_overlays()
 
     # ------------------------------------------------------------------
-    # Photo / Timer
+    # Photo / Timer / Flash
     # ------------------------------------------------------------------
     def _on_photo(self) -> None:
         if self._timer_active:
@@ -465,12 +620,31 @@ class MainWindow(QMainWindow):
         if frame is None:
             self._show_status("Nessun frame disponibile per la foto", error=True)
             return
+        self._flash_effect()
         path = Storage.save_photo(frame)
         if path is None:
             self._show_status("Errore salvataggio foto", error=True)
             return
         self._show_status(f"Foto salvata: {path}")
         self.status.showMessage(f"Foto salvata: {path}", 5000)
+        self._add_recent_media(path)
+
+    def _flash_effect(self) -> None:
+        self.flash.show()
+        self.flash.setGeometry(self.preview_container.rect())
+        effect = QGraphicsOpacityEffect(self.flash)
+        self.flash.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity")
+        anim.setDuration(350)
+        anim.setStartValue(0.9)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.OutCubic)
+        anim.finished.connect(self._clear_flash)
+        anim.start(Qt.DeleteWhenStopped)
+
+    def _clear_flash(self) -> None:
+        self.flash.hide()
+        self.flash.setGraphicsEffect(None)
 
     # ------------------------------------------------------------------
     # Recording
@@ -497,7 +671,7 @@ class MainWindow(QMainWindow):
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
         self.lbl_rec.show()
-        self.lbl_rec.setText("REC")
+        self.lbl_rec.setText("● REC")
         self._rec_timer = QTimer(self)
         self._rec_timer.setInterval(500)
         self._rec_timer.timeout.connect(self._update_rec_time)
@@ -519,36 +693,172 @@ class MainWindow(QMainWindow):
         if path:
             self._show_status(f"Registrazione salvata: {path}")
             self.status.showMessage(f"Registrazione salvata: {path}", 5000)
+            self._add_recent_media(path)
         else:
             self._show_status("Registrazione interrotta senza salvataggio", error=True)
 
     def _update_rec_time(self) -> None:
         elapsed = self.recorder.elapsed()
         m, s = divmod(int(elapsed), 60)
-        self.lbl_rec.setText(f"REC {m:02d}:{s:02d}")
+        self.lbl_rec.setText(f"● REC {m:02d}:{s:02d}")
 
     # ------------------------------------------------------------------
-    # Folder
+    # Recent media
+    # ------------------------------------------------------------------
+    def _load_recent_media(self) -> None:
+        self._recent_media = []
+        for folder in (Storage.photos_dir(), Storage.recordings_dir()):
+            if not folder.exists():
+                continue
+            try:
+                files = [p for p in folder.glob("*") if p.is_file()]
+                files = sorted(files, key=lambda p: p.stat().st_mtime, reverse=True)[: self._max_recent]
+                self._recent_media.extend(files)
+            except Exception as exc:
+                logger.debug("Impossibile caricare i file recenti da %s: %s", folder, exc)
+        self._recent_media = self._recent_media[: self._max_recent]
+        self._refresh_recent_strip()
+
+    def _add_recent_media(self, path: Path) -> None:
+        self._recent_media.insert(0, path)
+        self._recent_media = self._recent_media[: self._max_recent]
+        self._refresh_recent_strip()
+
+    def _refresh_recent_strip(self) -> None:
+        for i, lbl in enumerate(self._recent_labels):
+            if i < len(self._recent_media):
+                path = self._recent_media[i]
+                pix = QPixmap(str(path))
+                if not pix.isNull():
+                    pix = pix.scaled(72, 54, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                    rect = pix.rect()
+                    rect.moveCenter(QPoint(36, 27))
+                    pix = pix.copy(rect)
+                    lbl.setPixmap(pix)
+                else:
+                    lbl.setPixmap(QPixmap())
+                    lbl.setText("🎬" if path.suffix.lower() == ".mp4" else "🖼")
+                lbl.setToolTip(str(path))
+                lbl.setCursor(QCursor(Qt.PointingHandCursor))
+                lbl.mousePressEvent = lambda ev, p=path: self._open_recent(p)
+            else:
+                lbl.clear()
+                lbl.setToolTip("")
+
+    def _open_recent(self, path: Path) -> None:
+        if path.exists():
+            Storage.open_folder(path.parent)
+
+    # ------------------------------------------------------------------
+    # Folder / Fullscreen
     # ------------------------------------------------------------------
     def _on_open_folder(self) -> None:
         Storage.open_folder(Storage.photos_dir())
+
+    def _toggle_fullscreen(self) -> None:
+        self._fullscreen = not self._fullscreen
+        if self._fullscreen:
+            self.showFullScreen()
+            self.btn_fullscreen.setText("Esci da schermo intero")
+        else:
+            self.showNormal()
+            self.btn_fullscreen.setText("Schermo intero")
+
+    # ------------------------------------------------------------------
+    # Autostart
+    # ------------------------------------------------------------------
+    def _autostart_desktop_path(self) -> Path:
+        return Path.home() / ".config" / "autostart" / "mintcam.desktop"
+
+    def _autostart_launcher_path(self) -> Path:
+        candidates = [Path.home() / ".local/bin/mintcam", Path("/usr/bin/mintcam")]
+        for path in candidates:
+            if path.exists():
+                return path
+        exe = shutil.which("mintcam")
+        if exe:
+            return Path(exe)
+        return candidates[0]
+
+    def _is_autostart_enabled(self) -> bool:
+        path = self._autostart_desktop_path()
+        if not path.exists():
+            return False
+        try:
+            content = path.read_text(encoding="utf-8")
+            if "X-GNOME-Autostart-enabled=false" in content:
+                return False
+            return True
+        except Exception:
+            return False
+
+    def _set_autostart(self, enabled: bool) -> None:
+        path = self._autostart_desktop_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if enabled:
+                launcher = self._autostart_launcher_path()
+                content = (
+                    "[Desktop Entry]\n"
+                    "Name=MintCam\n"
+                    f"Exec={launcher}\n"
+                    "Icon=camera-photo\n"
+                    "Terminal=false\n"
+                    "Type=Application\n"
+                    "Categories=AudioVideo;Video;Recorder;\n"
+                    "X-GNOME-Autostart-enabled=true\n"
+                )
+                path.write_text(content, encoding="utf-8")
+                path.chmod(0o644)
+            else:
+                if path.exists():
+                    path.unlink()
+        except Exception as exc:
+            logger.error("Impossibile %s l'avvio automatico: %s", "abilitare" if enabled else "disabilitare", exc)
+
+    def _load_autostart_state(self) -> None:
+        enabled = self._is_autostart_enabled()
+        self.chk_autostart.blockSignals(True)
+        self.chk_autostart.setChecked(enabled)
+        self.chk_autostart.blockSignals(False)
+
+    def _on_autostart_changed(self, checked: bool) -> None:
+        self.settings.set("autostart", checked)
+        self._set_autostart(checked)
+        self._show_status("Avvio automatico " + ("abilitato" if checked else "disabilitato"))
 
     # ------------------------------------------------------------------
     # Header / status
     # ------------------------------------------------------------------
     def _update_header_info(self) -> None:
-        self.lbl_info.setText(f"Risoluzione: {self._width}x{self._height} | FPS: {self._fps}")
+        self.lbl_info.setText(f"{self._width}x{self._height} · {self._fps} FPS")
 
     def _show_status(self, message: str, error: bool = False) -> None:
-        color = "#ff5252" if error else "#4fc3f7"
-        self.lbl_status.setStyleSheet(f"color: {color};")
+        color = "#ef4444" if error else "#5cd962"
+        self.lbl_status.setStyleSheet(f"color: {color}; font-size: 12px;")
         self.lbl_status.setText(message)
         logger.info(message)
+
+    # ------------------------------------------------------------------
+    # Connections
+    # ------------------------------------------------------------------
+    def _connect_signals(self) -> None:
+        self.combo_camera.currentIndexChanged.connect(self._on_camera_changed)
+        self.combo_resolution.currentTextChanged.connect(self._on_resolution_changed)
+        self.combo_fps.valueChanged.connect(self._on_fps_changed)
+        self.combo_filter.currentTextChanged.connect(self._on_filter_changed)
+        self.combo_format.currentTextChanged.connect(self._on_format_changed)
+        self.combo_timer.currentIndexChanged.connect(self._on_timer_changed)
+        self.slider_brightness["slider"].valueChanged.connect(self._on_brightness_changed)
+        self.slider_contrast["slider"].valueChanged.connect(self._on_contrast_changed)
+        self.slider_saturation["slider"].valueChanged.connect(self._on_saturation_changed)
 
     # ------------------------------------------------------------------
     # Cleanup
     # ------------------------------------------------------------------
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        if self._fullscreen:
+            self._toggle_fullscreen()
         if self._recording:
             self._stop_recording()
         if self.camera is not None:

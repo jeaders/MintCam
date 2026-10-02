@@ -1,4 +1,6 @@
 import logging
+import os
+import shutil
 from typing import Optional
 
 import cv2
@@ -12,6 +14,36 @@ RESOLUTIONS = {
     "1280x720": (1280, 720),
     "1920x1080": (1920, 1080),
 }
+
+
+def _get_device_name(index: int) -> str:
+    path = f"/sys/class/video4linux/video{index}/name"
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            name = f.read().strip()
+        if name:
+            return name
+    except Exception:
+        pass
+    return ""
+
+
+def enumerate_cameras() -> list[tuple[int, str]]:
+    import glob
+    devices: list[tuple[int, str]] = []
+    for path in sorted(glob.glob("/dev/video*")):
+        idx = int(path.replace("/dev/video", ""))
+        cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+        ok = cap.isOpened()
+        if ok:
+            ret, _ = cap.read()
+            ok = ret
+        cap.release()
+        if ok:
+            name = _get_device_name(idx)
+            label = name if name else f"Webcam {idx}"
+            devices.append((idx, label))
+    return devices
 
 
 class CameraWorker(QThread):
@@ -105,3 +137,4 @@ class CameraWorker(QThread):
 
     def last_frame(self) -> Optional[np.ndarray]:
         return self._last_frame
+

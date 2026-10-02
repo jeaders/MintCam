@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.mintcam.MintCam</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>MintCam</name>
+  <summary>Webcam app for Linux Mint</summary>
+  <description>
+    <p>MintCam is a lightweight desktop webcam application for Linux Mint.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Live webcam preview</li>
+      <li>Photo capture with timer</li>
+      <li>Video recording</li>
+      <li>Basic filters and adjustments</li>
+      <li>Multiple camera support</li>
+      <li>Dark theme UI</li>
+    </ul>
+  </description>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Recorder</category>
+  </categories>
+  <keywords>
+    <keyword>webcam</keyword>
+    <keyword>camera</keyword>
+    <keyword>video</keyword>
+    <keyword>recorder</keyword>
+    <keyword>photo</keyword>
+    <keyword>linux mint</keyword>
+  </keywords>
+  <launchable type="desktop-id">mintcam.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">https://mintcam.example.com/screenshot-main.png</screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/jeaders/MintCam</url>
+  <provides>
+    <binary>mintcam</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-10-02">
+      <description>
+        <p>Initial prototype release.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-info">none</content_attribute>
+  </content_rating>
+  <update_contact>hilliedmikerano@gmail.com</update_contact>
+</component>

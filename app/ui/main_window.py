@@ -1295,23 +1295,30 @@ class MainWindow(QMainWindow):
     def _apply_face_framing(self, frame: np.ndarray) -> np.ndarray:
         if not getattr(self, "_face_framing_enabled", False):
             return frame
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        cascade = cv2.CascadeClassifier(cascade_path)
-        if cascade.empty():
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            cascade = cv2.CascadeClassifier(cascade_path)
+            if cascade.empty():
+                return frame
+            faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+            if len(faces) == 0:
+                return frame
+            x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
+            cx, cy = x + w // 2, y + h // 2
+            fh, fw = frame.shape[:2]
+            target_zoom = 1.6
+            new_w = int(fw / target_zoom)
+            new_h = int(fh / target_zoom)
+            x1 = max(0, min(fw - new_w, cx - new_w // 2))
+            y1 = max(0, min(fh - new_h, cy - new_h // 2))
+            return frame[y1 : y1 + new_h, x1 : x1 + new_w]
+        except AttributeError:
+            logger.debug("CascadeClassifier non disponibile in questo OpenCV")
             return frame
-        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-        if len(faces) == 0:
+        except Exception as exc:
+            logger.debug("Errore face framing: %s", exc)
             return frame
-        x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
-        cx, cy = x + w // 2, y + h // 2
-        fh, fw = frame.shape[:2]
-        target_zoom = 1.6
-        new_w = int(fw / target_zoom)
-        new_h = int(fh / target_zoom)
-        x1 = max(0, min(fw - new_w, cx - new_w // 2))
-        y1 = max(0, min(fh - new_h, cy - new_h // 2))
-        return frame[y1 : y1 + new_h, x1 : x1 + new_w]
 
     # ------------------------------------------------------------------
     # Time-lapse

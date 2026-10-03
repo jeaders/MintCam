@@ -18,25 +18,31 @@ class Recorder:
     def start(self, frame: np.ndarray, path: Path, fps: int = 30) -> bool:
         if self._writer is not None:
             return False
-        fourccs = [cv2.VideoWriter_fourcc(*"mp4v"), cv2.VideoWriter_fourcc(*"XVID"), cv2.VideoWriter_fourcc(*"MJPG")]
         height, width = frame.shape[:2]
-        for fourcc in fourccs:
+        codecs = [
+            ("mp4v", ".mp4"),
+            ("XVID", ".avi"),
+            ("MJPG", ".avi"),
+        ]
+        for fourcc_code, ext in codecs:
             try:
-                writer = cv2.VideoWriter(str(path), fourcc, float(fps), (width, height))
+                test_path = path.with_suffix(ext)
+                writer = cv2.VideoWriter(str(test_path), cv2.VideoWriter_fourcc(*fourcc_code), float(fps), (width, height))
                 if writer.isOpened():
                     self._writer = writer
                     self._started = time.time()
-                    self._path = path
-                    logger.info("Registrazione avviata: %s", path)
+                    self._path = test_path
+                    logger.info("Registrazione avviata: %s", test_path)
                     return True
             except Exception as exc:
-                logger.debug("Fourcc %s non supportato: %s", fourcc, exc)
+                logger.debug("Fourcc %s non supportato: %s", fourcc_code, exc)
         logger.error("Nessun codec disponibile per la registrazione video")
         return False
 
     def write(self, frame: np.ndarray) -> None:
         if self._writer is not None:
             try:
+                frame = np.ascontiguousarray(frame)
                 self._writer.write(frame)
             except Exception as exc:
                 logger.error("Errore scrittura frame registrazione: %s", exc)

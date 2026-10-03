@@ -1344,10 +1344,19 @@ class MainWindow(QMainWindow):
             if not os.path.exists(self._mintcast_device):
                 try:
                     subprocess.run(
-                        ["sudo", "modprobe", "v4l2loopback", "devices=1", "video_nr=10", "exclusive_caps=1"],
+                        ["modprobe", "v4l2loopback", "devices=1", "video_nr=10", "exclusive_caps=1"],
                         check=False,
                         capture_output=True,
+                        timeout=5,
                     )
+                except FileNotFoundError:
+                    pass
+                except subprocess.TimeoutExpired:
+                    self._show_status(
+                        "MintCast: modprobe timeout. Installa v4l2loopback-dkms.",
+                        error=True,
+                    )
+                    return False
                 except Exception:
                     pass
                 if not os.path.exists(self._mintcast_device):
@@ -1357,16 +1366,17 @@ class MainWindow(QMainWindow):
                         error=True,
                     )
                     return False
-            self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
+            try:
+                self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
+            except PermissionError:
+                self._show_status(
+                    f"MintCast: permessi insufficienti per {self._mintcast_device}. "
+                    "Aggiungi l'utente al gruppo video: sudo usermod -aG video $USER",
+                    error=True,
+                )
+                return False
             self._show_status(f"MintCast attivo su {self._mintcast_device}")
             return True
-        except PermissionError:
-            self._show_status(
-                f"MintCast: permessi insufficienti per {self._mintcast_device}. "
-                "Aggiungi l'utente al gruppo video: sudo usermod -aG video $USER",
-                error=True,
-            )
-            return False
         except Exception as exc:
             logger.error("Impossibile avviare MintCast: %s", exc)
             self._show_status(f"MintCast errore: {exc}", error=True)
@@ -1386,6 +1396,11 @@ class MainWindow(QMainWindow):
         try:
             if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
                 self._mintcast_writer.write(frame.tobytes())
+        except BrokenPipeError:
+            self._show_status("MintCast: dispositivo non disponibile", error=True)
+            self._mintcast_enabled = False
+            if hasattr(self, "chk_mintcast"):
+                self.chk_mintcast.setChecked(False)
         except Exception as exc:
             logger.debug("Errore scrittura MintCast: %s", exc)
 

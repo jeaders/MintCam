@@ -759,18 +759,14 @@ class MainWindow(QMainWindow):
             self._timelapse_timer.setInterval(value * 1000)
 
     def _on_mintcast_changed(self, checked: bool) -> None:
-        self._mintcast_enabled = checked
-        if checked:
-            ok = self._start_virtual_cam()
-            if not ok:
-                self._mintcast_enabled = False
-                self.chk_mintcast.blockSignals(True)
-                self.chk_mintcast.setChecked(False)
-                self.chk_mintcast.blockSignals(False)
-                self.settings.set("mintcast", False)
-        else:
+        if checked and not self._mintcast_enabled:
+            self._start_virtual_cam()
+        elif not checked and self._mintcast_enabled:
             self._stop_virtual_cam()
             self._show_status("MintCast disattivato")
+        self._mintcast_enabled = checked
+        if checked and self._mintcast_enabled:
+            self.settings.set("mintcast", True)
 
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame

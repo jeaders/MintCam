@@ -757,12 +757,13 @@ class MainWindow(QMainWindow):
 
     def _on_mintcast_changed(self, checked: bool) -> None:
         self._mintcast_enabled = checked
-        self.settings.set("mintcast", checked)
         if checked:
             ok = self._start_virtual_cam()
             if not ok:
                 self._mintcast_enabled = False
+                self.chk_mintcast.blockSignals(True)
                 self.chk_mintcast.setChecked(False)
+                self.chk_mintcast.blockSignals(False)
                 self.settings.set("mintcast", False)
         else:
             self._stop_virtual_cam()

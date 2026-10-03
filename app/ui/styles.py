@@ -71,7 +71,6 @@ def apply_dark_theme(app: QApplication) -> None:
             border-radius: 8px;
             font-weight: 600;
             min-height: 36px;
-            transition: background-color 0.2s ease;
         }
         QPushButton:hover {
             background-color: #2c333f;

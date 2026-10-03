@@ -145,10 +145,9 @@ mintcam/
 
 ## Limitazioni
 
-- La registrazione video è **senza audio**.
+- La registrazione video è **senza audio** nel prototipo attuale.
 - MintCast richiede `v4l2loopback` per funzionare.
-- Non sono supportate effetti overlay o transizioni video.
-- Non è previsto caricamento online o cloud.
+- Alcune funzionalità avanzate sono in fase di pianificazione.
 
 ## Audio previsto nella versione futura
 
@@ -160,23 +159,29 @@ Per il prototipo attuale è stato scelto di non registrare l'audio per mantenere
 
 ## Roadmap futura
 
+### v0.2.0
+- Registrazione audio con GStreamer
 - Selezione microfono
-- Registrazione audio sincronizzata
-- Filtri avanzati (bilanciamento bianco, nitidezza)
-- Supporto slow-motion / time-lapse avanzato
-- Esportazione diretta in MP4 con FFmpeg
-- Impostazioni di compressione
-- Supporto a più webcam contemporaneamente
-- Registrazione a schermo intero
-- Scatto multiplo / burst migliorato
-- Hotkey configurabili
+- Contatore FPS reale con media mobile
+- Overlay data/ora su preview e registrazione
+- Zoom digitale con slider
+
+### v0.3.0
 - Galleria miniature integrata
-- Overlay data/ora su video
-- Zoom digitale
-- Controllo guadagno / esposizione automatica
-- Traduzione interfaccia in inglese
-- Installer `.deb` migliorato per Linux Mint store
-- Supporto Flatpak / AppImage
+- Slow-motion e time-lapse avanzato
+- Impostazioni avanzate codec
+- Supporto multi-camera contemporaneamente
+- Effetti transizione video (fade, dissolve)
+- Streaming RTMP diretto (Twitch/Youtube)
+- Remote control via HTTP/WebSocket
+
+### v1.0.0 (store)
+- Installer `.deb` pulito per Linux Mint store
+- AppStream metadata completa
+- Icone HD e tema personalizzabile
+- Traduzione EN/IT
+- Test completati
+- Documentazione utente
 
 ## Contribuire
 

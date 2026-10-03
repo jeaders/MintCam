@@ -459,6 +459,7 @@ class MainWindow(QMainWindow):
         )
         self.lbl_rec.hide()
         self.lbl_rec.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.lbl_rec.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
 
         # QR result
@@ -1330,6 +1331,10 @@ class MainWindow(QMainWindow):
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
         for frame in self._timelapse_frames:
+            if frame.shape[:2] != (h, w):
+                frame = cv2.resize(frame, (w, h))
+            if frame.ndim != 3 or frame.shape[2] != 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             writer.write(frame)
         writer.release()
         self._show_status(f"Time-lapse salvato: {path}")

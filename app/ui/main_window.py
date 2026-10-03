@@ -50,7 +50,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("MintCam")
         self.resize(1200, 780)
         self.setMinimumSize(860, 620)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setStyleSheet("QMainWindow { border: none; }")
 
@@ -112,7 +111,6 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # Background frame
         bg = QFrame()
         bg.setStyleSheet("background-color: #0f1115;")
         bg_lay = QGridLayout(bg)
@@ -120,11 +118,9 @@ class MainWindow(QMainWindow):
         bg_lay.setSpacing(12)
         root.addWidget(bg, 0, 0, 1, 1)
 
-        # Header
         header = self._build_header()
         bg_lay.addWidget(header, 0, 0, 1, 2)
 
-        # Sidebar
         sidebar_scroll = QScrollArea()
         sidebar_scroll.setWidgetResizable(True)
         sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -149,7 +145,6 @@ class MainWindow(QMainWindow):
 
         bg_lay.addWidget(sidebar_scroll, 1, 1, 1, 1)
 
-        # Preview container
         preview_container = QWidget()
         preview_container.setStyleSheet("background-color: #0f1115;")
         preview_lay = QVBoxLayout(preview_container)
@@ -172,30 +167,23 @@ class MainWindow(QMainWindow):
         self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         preview_container_lay.addWidget(self.preview, 0, 0, 1, 1)
 
-        # Overlays
         self._build_overlays(preview_container_lay)
 
         preview_lay.addWidget(self.preview_container, 1)
 
-        # Recent media strip
         self.recent_strip = self._build_recent_strip()
         preview_lay.addWidget(self.recent_strip, 2)
 
         bg_lay.addWidget(preview_container, 1, 0, 1, 1)
 
-        # Footer
         footer = self._build_footer()
         bg_lay.addWidget(footer, 2, 0, 1, 2)
 
-        # Status bar
         self.status = QStatusBar()
         self.status.setStyleSheet("QStatusBar { background-color: #0f1115; color: #9aa0ac; padding: 4px 12px; }")
         self.setStatusBar(self.status)
 
-        # Restore settings
         self._restore_settings()
-
-        # Shortcuts
         self._install_shortcuts()
         self._connect_signals()
 
@@ -207,26 +195,36 @@ class MainWindow(QMainWindow):
         lay.setSpacing(16)
 
         logo_label = QLabel()
-        logo_label.setFixedSize(36, 36)
+        logo_label.setFixedSize(40, 40)
         logo_pix = self._load_logo()
         if not logo_pix.isNull():
-            logo_pix = logo_pix.scaled(36, 36, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            logo_pix = logo_pix.scaled(40, 40, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             logo_label.setPixmap(logo_pix)
         else:
             logo_label.setText("📷")
         logo_label.setStyleSheet("font-size: 22px; padding: 4px; border-radius: 8px;")
+        logo_label.setAlignment(Qt.AlignCenter)
+
         title = QLabel("MintCam")
         title.setStyleSheet("font-size: 20px; font-weight: 800; color: #5cd962; letter-spacing: -0.3px;")
+        title.setAlignment(Qt.AlignCenter)
 
         self.lbl_status = QLabel("Inizializzazione webcam…")
         self.lbl_status.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.lbl_info = QLabel("")
         self.lbl_info.setStyleSheet("color: #6b7280; font-size: 12px;")
 
-        lay.addWidget(logo_label)
-        lay.addWidget(title)
+        center_widget = QWidget()
+        center_lay = QHBoxLayout(center_widget)
+        center_lay.setContentsMargins(0, 0, 0, 0)
+        center_lay.setSpacing(12)
+        center_lay.addWidget(logo_label)
+        center_lay.addWidget(title)
+
+        lay.addWidget(center_widget, 1)
         lay.addStretch()
         lay.addWidget(self.lbl_status)
+        lay.addSpacing(16)
         lay.addWidget(self.lbl_info)
         return header
 
@@ -701,9 +699,6 @@ class MainWindow(QMainWindow):
         self.settings.set("saturation", 0)
         self._show_status("Regolazioni reset")
 
-    # ------------------------------------------------------------------
-    # QR/Barcode
-    # ------------------------------------------------------------------
     def _on_qr_changed(self, checked: bool) -> None:
         self._qr_enabled = checked
         self.settings.set("qr_enabled", checked)
@@ -711,63 +706,16 @@ class MainWindow(QMainWindow):
             self._qr_result = None
         self._show_status("QR/Barcode " + ("attivo" if checked else "disattivato"))
 
-    def _scan_qr(self, frame: np.ndarray) -> None:
-        if not _QR_AVAILABLE or not getattr(self, "_qr_enabled", False):
-            return
-        try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            results = qr_decode(gray)
-            if results:
-                text = " | ".join([r.data.decode("utf-8", errors="ignore") for r in results])
-                self._qr_result = text
-                self._show_status(f"QR: {text}")
-            else:
-                self._qr_result = None
-        except Exception as exc:
-            logger.debug("Errore scansione QR: %s", exc)
-
-    # ------------------------------------------------------------------
-    # Focus assist
-    # ------------------------------------------------------------------
     def _on_focus_changed(self, checked: bool) -> None:
         self._focus_assist_enabled = checked
         self.settings.set("focus_assist", checked)
-        self._show_status("Focus assist " + ("attivo" if checked else "disattivo"))
+        self._show_status("Focus assist " + ("attivo" if checked else "disattivato"))
 
-    def _compute_focus_score(self, frame: np.ndarray) -> float:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        return float(cv2.Laplacian(gray, cv2.CV_64F).var())
-
-    # ------------------------------------------------------------------
-    # Face auto-framing
-    # ------------------------------------------------------------------
     def _on_face_changed(self, checked: bool) -> None:
         self._face_framing_enabled = checked
         self.settings.set("face_framing", checked)
         self._show_status("Face framing " + ("attivo" if checked else "disattivato"))
 
-    def _apply_face_framing(self, frame: np.ndarray) -> np.ndarray:
-        if not getattr(self, "_face_framing_enabled", False):
-            return frame
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        cascade = cv2.CascadeClassifier(cascade_path)
-        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-        if len(faces) == 0:
-            return frame
-        x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
-        cx, cy = x + w // 2, y + h // 2
-        fh, fw = frame.shape[:2]
-        target_zoom = 1.6
-        new_w = int(fw / target_zoom)
-        new_h = int(fh / target_zoom)
-        x1 = max(0, min(fw - new_w, cx - new_w // 2))
-        y1 = max(0, min(fh - new_h, cy - new_h // 2))
-        return frame[y1 : y1 + new_h, x1 : x1 + new_w]
-
-    # ------------------------------------------------------------------
-    # Time-lapse
-    # ------------------------------------------------------------------
     def _on_timelapse_changed(self, checked: bool) -> None:
         self._timelapse_enabled = checked
         self.settings.set("timelapse", checked)
@@ -792,30 +740,6 @@ class MainWindow(QMainWindow):
         if self._timelapse_timer is not None:
             self._timelapse_timer.setInterval(value * 1000)
 
-    def _capture_timelapse_frame(self) -> None:
-        frame = self._processed_frame if self._processed_frame is not None else self._current_frame
-        if frame is None:
-            return
-        self._timelapse_frames.append(frame.copy())
-        self._show_status(f"Time-lapse: {len(self._timelapse_frames)} frame")
-
-    def _assemble_timelapse(self) -> None:
-        if len(self._timelapse_frames) < 2:
-            return
-        path = Storage.recordings_dir() / f"timelapse_{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
-        h, w = self._timelapse_frames[0].shape[:2]
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
-        for frame in self._timelapse_frames:
-            writer.write(frame)
-        writer.release()
-        self._show_status(f"Time-lapse salvato: {path}")
-        self.status.showMessage(f"Time-lapse salvato: {path}", 5000)
-        self._add_recent_media(path)
-
-    # ------------------------------------------------------------------
-    # MintCast virtual cam
-    # ------------------------------------------------------------------
     def _on_mintcast_changed(self, checked: bool) -> None:
         self._mintcast_enabled = checked
         self.settings.set("mintcast", checked)
@@ -828,34 +752,6 @@ class MainWindow(QMainWindow):
         else:
             self._stop_virtual_cam()
         self._show_status("MintCast " + ("attivo" if self._mintcast_enabled else "disattivato"))
-
-    def _start_virtual_cam(self) -> bool:
-        try:
-            import os
-            if not os.path.exists(self._mintcast_device):
-                return False
-            self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
-            return True
-        except Exception as exc:
-            logger.error("Impossibile avviare MintCast: %s", exc)
-            return False
-
-    def _stop_virtual_cam(self) -> None:
-        try:
-            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
-                self._mintcast_writer.close()
-                self._mintcast_writer = None
-        except Exception:
-            pass
-
-    def _write_mintcast_frame(self, frame: np.ndarray) -> None:
-        if not getattr(self, "_mintcast_enabled", False):
-            return
-        try:
-            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
-                self._mintcast_writer.write(frame.tobytes())
-        except Exception as exc:
-            logger.debug("Errore scrittura MintCast: %s", exc)
 
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame
@@ -881,15 +777,17 @@ class MainWindow(QMainWindow):
         if self._recording and self.recorder.is_recording():
             rec_frame = processed
             if self._recording_frame_size is not None:
+                th, tw = self._recording_frame_size
                 h, w = rec_frame.shape[:2]
-                tw, th = self._recording_frame_size
                 if (w, h) != (tw, th):
-                    x1 = max(0, (tw - w) // 2)
-                    y1 = max(0, (th - h) // 2)
                     if w >= tw or h >= th:
+                        y1 = max(0, (h - th) // 2)
+                        x1 = max(0, (w - tw) // 2)
                         rec_frame = rec_frame[y1 : y1 + th, x1 : x1 + tw]
                     else:
                         canvas = np.zeros((th, tw, 3), dtype=rec_frame.dtype)
+                        y1 = max(0, (th - h) // 2)
+                        x1 = max(0, (tw - w) // 2)
                         canvas[y1 : y1 + h, x1 : x1 + w] = rec_frame
                         rec_frame = canvas
             self.recorder.write(rec_frame)
@@ -1334,6 +1232,107 @@ class MainWindow(QMainWindow):
         self.spin_clip.valueChanged.connect(self._on_clip_changed)
         self.spin_quality.valueChanged.connect(self._on_quality_changed)
         self.combo_folder.currentIndexChanged.connect(self._on_folder_changed)
+
+    # ------------------------------------------------------------------
+    # QR/Barcode
+    # ------------------------------------------------------------------
+    def _scan_qr(self, frame: np.ndarray) -> None:
+        if not _QR_AVAILABLE or not getattr(self, "_qr_enabled", False):
+            return
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            results = qr_decode(gray)
+            if results:
+                text = " | ".join([r.data.decode("utf-8", errors="ignore") for r in results])
+                self._qr_result = text
+            else:
+                self._qr_result = None
+        except Exception as exc:
+            logger.debug("Errore scansione QR: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Focus assist
+    # ------------------------------------------------------------------
+    def _compute_focus_score(self, frame: np.ndarray) -> float:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    # ------------------------------------------------------------------
+    # Face auto-framing
+    # ------------------------------------------------------------------
+    def _apply_face_framing(self, frame: np.ndarray) -> np.ndarray:
+        if not getattr(self, "_face_framing_enabled", False):
+            return frame
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        cascade = cv2.CascadeClassifier(cascade_path)
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+        if len(faces) == 0:
+            return frame
+        x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
+        cx, cy = x + w // 2, y + h // 2
+        fh, fw = frame.shape[:2]
+        target_zoom = 1.6
+        new_w = int(fw / target_zoom)
+        new_h = int(fh / target_zoom)
+        x1 = max(0, min(fw - new_w, cx - new_w // 2))
+        y1 = max(0, min(fh - new_h, cy - new_h // 2))
+        return frame[y1 : y1 + new_h, x1 : x1 + new_w]
+
+    # ------------------------------------------------------------------
+    # Time-lapse
+    # ------------------------------------------------------------------
+    def _capture_timelapse_frame(self) -> None:
+        frame = self._processed_frame if self._processed_frame is not None else self._current_frame
+        if frame is None:
+            return
+        self._timelapse_frames.append(frame.copy())
+        self._show_status(f"Time-lapse: {len(self._timelapse_frames)} frame")
+
+    def _assemble_timelapse(self) -> None:
+        if len(self._timelapse_frames) < 2:
+            return
+        path = Storage.recordings_dir() / f"timelapse_{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
+        h, w = self._timelapse_frames[0].shape[:2]
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
+        for frame in self._timelapse_frames:
+            writer.write(frame)
+        writer.release()
+        self._show_status(f"Time-lapse salvato: {path}")
+        self.status.showMessage(f"Time-lapse salvato: {path}", 5000)
+        self._add_recent_media(path)
+
+    # ------------------------------------------------------------------
+    # MintCast virtual cam
+    # ------------------------------------------------------------------
+    def _start_virtual_cam(self) -> bool:
+        try:
+            import os
+            if not os.path.exists(self._mintcast_device):
+                return False
+            self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
+            return True
+        except Exception as exc:
+            logger.error("Impossibile avviare MintCast: %s", exc)
+            return False
+
+    def _stop_virtual_cam(self) -> None:
+        try:
+            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
+                self._mintcast_writer.close()
+                self._mintcast_writer = None
+        except Exception:
+            pass
+
+    def _write_mintcast_frame(self, frame: np.ndarray) -> None:
+        if not getattr(self, "_mintcast_enabled", False):
+            return
+        try:
+            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
+                self._mintcast_writer.write(frame.tobytes())
+        except Exception as exc:
+            logger.debug("Errore scrittura MintCast: %s", exc)
 
     # ------------------------------------------------------------------
     # Cleanup

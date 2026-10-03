@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
         self._photo_quality: int = 95
         self._burst_index: int = 0
         self._burst_timer: Optional[QTimer] = None
+        self._recording_frame_size: Optional[tuple[int, int]] = None
         self._qr_enabled: bool = False
         self._qr_result: Optional[str] = None
         self._focus_assist_enabled: bool = False
@@ -207,7 +208,7 @@ class MainWindow(QMainWindow):
 
         logo_label = QLabel()
         logo_label.setFixedSize(36, 36)
-        logo_pix = QPixmap(str(Path(__file__).resolve().parent.parent.parent / "assets" / "mintcam-logo.jpg"))
+        logo_pix = self._load_logo()
         if not logo_pix.isNull():
             logo_pix = logo_pix.scaled(36, 36, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             logo_label.setPixmap(logo_pix)
@@ -228,6 +229,19 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.lbl_status)
         lay.addWidget(self.lbl_info)
         return header
+
+    def _load_logo(self) -> QPixmap:
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / "assets" / "mintcam-logo.jpg",
+            Path("/usr/share/pixmaps/mintcam-logo.jpg"),
+            Path("/usr/share/mintcam/assets/mintcam-logo.jpg"),
+        ]
+        for path in candidates:
+            if path.exists():
+                pix = QPixmap(str(path))
+                if not pix.isNull():
+                    return pix
+        return QPixmap()
 
     def _build_card_camera(self) -> QGroupBox:
         grp = QGroupBox("Fotocamera")
@@ -444,6 +458,25 @@ class MainWindow(QMainWindow):
         )
         self.lbl_rec.hide()
         parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
+
+        # QR result
+        self.lbl_qr = QLabel(self.preview_container)
+        self.lbl_qr.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        self.lbl_qr.setWordWrap(True)
+        self.lbl_qr.setStyleSheet(
+            "background-color: rgba(15,17,21,200); color: #5cd962; font-size: 16px; font-weight: 700;"
+            "border: 2px solid #5cd962; border-radius: 10px; padding: 10px;"
+        )
+        self.lbl_qr.hide()
+        parent_layout.addWidget(self.lbl_qr, 0, 0, 1, 1)
+
+        # Focus assist indicator
+        self.lbl_focus = QLabel(self.preview_container)
+        self.lbl_focus.setAlignment(Qt.AlignBottom | Qt.AlignRight)
+        self.lbl_focus.setFixedSize(18, 18)
+        self.lbl_focus.setStyleSheet("border-radius: 9px; border: 2px solid #6b7280; background-color: transparent;")
+        self.lbl_focus.hide()
+        parent_layout.addWidget(self.lbl_focus, 0, 0, 1, 1)
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
@@ -846,15 +879,38 @@ class MainWindow(QMainWindow):
             processed = self._apply_face_framing(processed)
         self._processed_frame = processed
         if self._recording and self.recorder.is_recording():
-            self.recorder.write(processed)
+            rec_frame = processed
+            if self._recording_frame_size is not None:
+                h, w = rec_frame.shape[:2]
+                tw, th = self._recording_frame_size
+                if (w, h) != (tw, th):
+                    x1 = max(0, (tw - w) // 2)
+                    y1 = max(0, (th - h) // 2)
+                    if w >= tw or h >= th:
+                        rec_frame = rec_frame[y1 : y1 + th, x1 : x1 + tw]
+                    else:
+                        canvas = np.zeros((th, tw, 3), dtype=rec_frame.dtype)
+                        canvas[y1 : y1 + h, x1 : x1 + w] = rec_frame
+                        rec_frame = canvas
+            self.recorder.write(rec_frame)
             if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
                 self._stop_recording()
                 self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
         if getattr(self, "_qr_enabled", False):
             self._scan_qr(processed)
+            if getattr(self, "_qr_result", None):
+                self.lbl_qr.setText(self._qr_result)
+                self.lbl_qr.show()
+            else:
+                self.lbl_qr.hide()
         if getattr(self, "_focus_assist_enabled", False):
             score = self._compute_focus_score(processed)
+            color = "#ef4444" if score < 80 else "#f59e0b" if score < 180 else "#5cd962"
+            self.lbl_focus.setStyleSheet(f"border-radius: 9px; border: 2px solid {color}; background-color: {color};")
+            self.lbl_focus.show()
             self.lbl_status.setText(f"Focus score: {score:.1f}")
+        else:
+            self.lbl_focus.hide()
         if getattr(self, "_mintcast_enabled", False):
             self._write_mintcast_frame(processed)
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
@@ -947,6 +1003,15 @@ class MainWindow(QMainWindow):
         if hasattr(self, "grid_overlay"):
             self.grid_overlay.setGeometry(self.preview_container.rect())
             self._draw_grid()
+        if hasattr(self, "lbl_qr"):
+            self.lbl_qr.setFixedWidth(self.preview.width() // 2)
+            self.lbl_qr.move(
+                (self.preview.width() - self.lbl_qr.width()) // 2,
+                16,
+            )
+            self.lbl_qr.adjustSize()
+        if hasattr(self, "lbl_focus"):
+            self.lbl_focus.move(self.preview.width() - 36, self.preview.height() - 36)
 
     def _draw_grid(self) -> None:
         if not getattr(self, "_grid", False):
@@ -1055,6 +1120,7 @@ class MainWindow(QMainWindow):
         if frame is None:
             self._show_status("Nessun frame disponibile per la registrazione", error=True)
             return
+        self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
         ok = self.recorder.start(frame, path, fps=self._fps)
         if not ok:
@@ -1065,6 +1131,8 @@ class MainWindow(QMainWindow):
         self.btn_record.setObjectName("stop")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
+        self.combo_resolution.setEnabled(False)
+        self.combo_format.setEnabled(False)
         self.lbl_rec.show()
         self.lbl_rec.setText("● REC")
         self._rec_timer = QTimer(self)
@@ -1080,11 +1148,14 @@ class MainWindow(QMainWindow):
         self.btn_record.setObjectName("record")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
+        self.combo_resolution.setEnabled(True)
+        self.combo_format.setEnabled(True)
         self.lbl_rec.hide()
         if hasattr(self, "_rec_timer") and self._rec_timer is not None:
             self._rec_timer.stop()
             self._rec_timer.deleteLater()
             self._rec_timer = None
+        self._recording_frame_size = None
         if path:
             self._show_status(f"Registrazione salvata: {path}")
             self.status.showMessage(f"Registrazione salvata: {path}", 5000)

@@ -8,7 +8,7 @@ BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
 
 rm -rf "$BUILD_DIR" "$DIST_DIR"
-mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/pixmaps,usr/share/mintcam}
+mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/pixmaps,usr/share/mintcam,usr/share/mintcam/assets}
 mkdir -p "$DIST_DIR"
 
 # Control
@@ -38,6 +38,7 @@ install -m 0644 "${SCRIPT_DIR}/mintcam.appdata.xml" "$BUILD_DIR/usr/share/metain
 
 # Icon
 install -m 0644 "${SCRIPT_DIR}/assets/mintcam-logo.jpg" "$BUILD_DIR/usr/share/pixmaps/mintcam-logo.jpg"
+install -m 0644 "${SCRIPT_DIR}/assets/mintcam-logo.jpg" "$BUILD_DIR/usr/share/mintcam/assets/mintcam-logo.jpg"
 
 # App files
 rsync -av \

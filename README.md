@@ -2,20 +2,33 @@
 
 Applicazione desktop leggera per Linux Mint per usare la webcam come videocamera live, fotocamera e registratore video semplice per creator e videochiamate.
 
-## Funzioni disponibili (prototipo)
+## Funzioni disponibili
 
 - Anteprima webcam live con OpenCV
 - Scatto foto con salvataggio automatico in `~/MintCam/photos`
-- Registrazione video senza audio (prototipo) in `~/MintCam/recordings`
-- Selezione della webcam (`/dev/video0` … `/dev/video3`)
+- Registrazione video senza audio in `~/MintCam/recordings`
+- Selezione della webcam con nome dispositivo
 - Risoluzioni: 640x480, 1280x720, 1920x1080 (se supportata)
-- FPS: 15 / 30
-- Filtri: Normale, Bianco e nero, Sepia, Negativo, Contrasto elevato, Specchio orizzontale
+- FPS: 1-120
+- Filtri: Normale, Bianco e nero, Sepia, Negativo, Contrasto elevato
+- Specchio live
+- Griglia composizione
 - Formati: 16:9, 4:3, 9:16
 - Timer foto: 3, 5, 10 secondi
+- Burst foto: 3, 5, 10 scatti
 - Regolazioni: luminosità, contrasto, saturazione
-- Apertura cartella foto con il file manager di Linux
+- Focus assist con indicatore visivo
+- QR/Barcode scanner live
+- Face auto-framing
+- Time-lapse con assemblaggio MP4 automatico
+- MintCast virtual webcam
+- Pausa anteprima
+- Limite durata registrazione
+- Qualità foto regolabile
+- Apertura cartella foto/registrazioni
+- Avvio automatico con il sistema
 - Tema scuro moderno
+- Icona personalizzata
 
 ## Requisiti
 
@@ -25,6 +38,7 @@ Applicazione desktop leggera per Linux Mint per usare la webcam come videocamera
 - `v4l-utils` (per verificare le webcam)
 - `ffmpeg` (consigliato per il codec video)
 - `libxcb-cursor0` (richiesto da Qt per il plugin xcb)
+- `pyzbar`, `Pillow` (per QR/Barcode scanner)
 
 ## Installazione
 
@@ -40,27 +54,14 @@ chmod +x run.sh
 ./run.sh
 ```
 
-## Verifica della webcam
-
-```bash
-v4l2-ctl --list-devices
-v4l2-ctl --list-formats-ext -d /dev/video0
-```
-
 ## Installazione come applicazione desktop
-
-Dopo aver creato il virtualenv e installato le dipendenze, puoi integrare MintCam nel menu di Linux Mint:
 
 ```bash
 chmod +x install-local.sh
 ./install-local.sh
 ```
 
-Lo script copia l'app in `~/.local/share/mintcam/`, crea il launcher `mintcam` in `~/.local/bin/` e il file `.desktop` in `~/.local/share/applications/`.
-
-Dopo l'installazione:
-- cerca **MintCam** nel menu applicazioni di Linux Mint
-- oppure avvia da terminale con `mintcam`
+Cerca **MintCam** nel menu applicazioni di Linux Mint o avvia da terminale con `mintcam`.
 
 Per disinstallare:
 ```bash
@@ -69,14 +70,36 @@ rm -rf ~/.local/share/mintcam
 rm -f ~/.local/bin/mintcam
 ```
 
-## Avvio automatico all'accensione (opzionale)
+## Pacchetto .deb
 
-Per avviare MintCam automaticamente quando accendi il computer:
+```bash
+./build-deb.sh
+sudo dpkg -i dist/mintcam_0.1.0_all.deb
+```
+
+## Verifica della webcam
+
+```bash
+v4l2-ctl --list-devices
+v4l2-ctl --list-formats-ext -d /dev/video0
+```
+
+## Avvio automatico all'accensione
+
 1. Apri il menu → Preferenze → Applicazioni d'avvio
 2. Clicca "Aggiungi"
 3. Nome: `MintCam`
 4. Comando: `mintcam`
 5. Salva
+
+## MintCast virtual webcam (opzionale)
+
+```bash
+sudo apt install v4l2loopback-dkms
+sudo modprobe v4l2loopback
+```
+
+Poi attiva "MintCast virtual cam" nelle impostazioni.
 
 ## Struttura del progetto
 
@@ -103,6 +126,11 @@ mintcam/
 ├── run.sh
 ├── mintcam
 ├── install-local.sh
+├── build-deb.sh
+├── packaging/
+│   ├── mintcam-launcher
+│   └── mintcam.desktop
+├── mintcam.appdata.xml
 └── .gitignore
 ```
 
@@ -113,11 +141,13 @@ mintcam/
 - **Permesso negato**: controlla di appartenere al gruppo `video` (`sudo usermod -aG video $USER`) e riavvia la sessione.
 - **Risoluzione non supportata**: prova 640x480 o 1280x720.
 - **Registrazione vuota o corrotta**: assicurati che `ffmpeg` sia installato.
+- **QR non funziona**: installa `pyzbar` e `Pillow` (`pip install pyzbar Pillow`).
 
 ## Limitazioni
 
-- La prima versione registra il video **senza audio**.
-- Non sono supportate effetti overlay o transizioni.
+- La registrazione video è **senza audio**.
+- MintCast richiede `v4l2loopback` per funzionare.
+- Non sono supportate effetti overlay o transizioni video.
 - Non è previsto caricamento online o cloud.
 
 ## Audio previsto nella versione futura
@@ -133,12 +163,20 @@ Per il prototipo attuale è stato scelto di non registrare l'audio per mantenere
 - Selezione microfono
 - Registrazione audio sincronizzata
 - Filtri avanzati (bilanciamento bianco, nitidezza)
-- Supporto slow-motion / time-lapse
+- Supporto slow-motion / time-lapse avanzato
 - Esportazione diretta in MP4 con FFmpeg
 - Impostazioni di compressione
 - Supporto a più webcam contemporaneamente
 - Registrazione a schermo intero
-- Scatto multiplo / burst
+- Scatto multiplo / burst migliorato
+- Hotkey configurabili
+- Galleria miniature integrata
+- Overlay data/ora su video
+- Zoom digitale
+- Controllo guadagno / esposizione automatica
+- Traduzione interfaccia in inglese
+- Installer `.deb` migliorato per Linux Mint store
+- Supporto Flatpak / AppImage
 
 ## Contribuire
 

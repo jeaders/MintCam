@@ -790,27 +790,15 @@ class MainWindow(QMainWindow):
             processed = self._apply_face_framing(processed)
         self._processed_frame = processed
         if self._recording and self.recorder.is_recording():
-            rec_frame = processed
-            if rec_frame.ndim != 3 or rec_frame.shape[2] != 3:
-                if rec_frame.ndim == 2:
-                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_GRAY2BGR)
-                else:
-                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_BGR2RGB)
+            rec_frame = processed.copy()
+            if rec_frame.ndim == 2:
+                rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_GRAY2BGR)
+            if rec_frame.shape[2] == 4:
+                rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_BGRA2BGR)
             if self._recording_frame_size is not None:
                 th, tw = self._recording_frame_size
                 h, w = rec_frame.shape[:2]
                 if (w, h) != (tw, th):
-                    if w >= tw or h >= th:
-                        y1 = max(0, (h - th) // 2)
-                        x1 = max(0, (w - tw) // 2)
-                        rec_frame = rec_frame[y1 : y1 + th, x1 : x1 + tw]
-                    else:
-                        canvas = np.zeros((th, tw, 3), dtype=np.uint8)
-                        y1 = max(0, (th - h) // 2)
-                        x1 = max(0, (tw - w) // 2)
-                        canvas[y1 : y1 + h, x1 : x1 + w] = rec_frame
-                        rec_frame = canvas
-                if rec_frame.shape[:2] != (th, tw):
                     rec_frame = cv2.resize(rec_frame, (tw, th))
             self.recorder.write(rec_frame)
             if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:

@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
 
-        self.btn_photo = QPushButton("Foto")
+        self.btn_photo = QPushButton("📷 Scatta Foto")
         self.btn_photo.setObjectName("primary")
         self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
@@ -1345,30 +1345,15 @@ class MainWindow(QMainWindow):
             import subprocess
 
             if not os.path.exists(self._mintcast_device):
-                try:
-                    subprocess.run(
-                        ["modprobe", "v4l2loopback", "devices=1", "video_nr=10", "exclusive_caps=1"],
-                        check=False,
-                        capture_output=True,
-                        timeout=5,
-                    )
-                except FileNotFoundError:
-                    pass
-                except subprocess.TimeoutExpired:
-                    self._show_status(
-                        "MintCast: modprobe timeout. Installa v4l2loopback-dkms.",
-                        error=True,
-                    )
-                    return False
-                except Exception:
-                    pass
-                if not os.path.exists(self._mintcast_device):
-                    self._show_status(
-                        f"MintCast: {self._mintcast_device} non disponibile. "
-                        "Installa v4l2loopback-dkms e riavvia.",
-                        error=True,
-                    )
-                    return False
+                self._show_status(
+                    "MintCast: /dev/video10 non disponibile. "
+                    "Per attivarlo:\n"
+                    "  sudo apt install v4l2loopback-dkms\n"
+                    "  sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1\n"
+                    "  sudo usermod -aG video $USER  (poi riavvia)",
+                    error=True,
+                )
+                return False
             try:
                 self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
             except PermissionError:

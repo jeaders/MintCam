@@ -450,12 +450,12 @@ class MainWindow(QMainWindow):
         self.lbl_countdown.hide()
         parent_layout.addWidget(self.lbl_countdown, 0, 0, 1, 1)
 
-        # REC
+        # REC indicator - small red light at bottom
         self.lbl_rec = QLabel(self.preview_container)
-        self.lbl_rec.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.lbl_rec.setAlignment(Qt.AlignCenter)
         self.lbl_rec.setStyleSheet(
-            "background-color: #ef4444; color: white; font-size: 13px; font-weight: 800;"
-            "padding: 6px 12px; border-radius: 14px;"
+            "background-color: #ef4444; color: white; font-size: 11px; font-weight: 700;"
+            "padding: 4px 10px; border-radius: 10px;"
         )
         self.lbl_rec.hide()
         self.lbl_rec.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
 
-        self.btn_photo = QPushButton("Scatta foto")
+        self.btn_photo = QPushButton("📷 Foto")
         self.btn_photo.setObjectName("primary")
         self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
@@ -757,7 +757,7 @@ class MainWindow(QMainWindow):
                 self.settings.set("mintcast", False)
         else:
             self._stop_virtual_cam()
-        self._show_status("MintCast " + ("attivo" if self._mintcast_enabled else "disattivato"))
+            self._show_status("MintCast disattivato")
 
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame
@@ -809,19 +809,19 @@ class MainWindow(QMainWindow):
                 self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
         if getattr(self, "_qr_enabled", False):
             self._scan_qr(processed)
-            if getattr(self, "_qr_result", None):
-                self.lbl_qr.setText(self._qr_result)
-                self.lbl_qr.show()
-                self.lbl_qr.raise_()
-            else:
-                self.lbl_qr.setText("Scanning…")
-                self.lbl_qr.show()
-                self.lbl_qr.raise_()
+            self.lbl_qr.setText("Scanning…" if not getattr(self, "_qr_result", None) else self._qr_result)
+            self.lbl_qr.show()
+            self.lbl_qr.raise_()
+        else:
+            self.lbl_qr.hide()
         if getattr(self, "_focus_assist_enabled", False):
             score = self._compute_focus_score(processed)
             color = "#ef4444" if score < 80 else "#f59e0b" if score < 180 else "#5cd962"
-            self.lbl_focus.setStyleSheet(f"border-radius: 9px; border: 2px solid {color}; background-color: {color};")
+            self.lbl_focus.setStyleSheet(
+                f"border-radius: 12px; border: 3px solid {color}; background-color: {color};"
+            )
             self.lbl_focus.show()
+            self.lbl_focus.raise_()
             self.lbl_status.setText(f"Focus score: {score:.1f}")
         else:
             self.lbl_focus.hide()
@@ -910,17 +910,19 @@ class MainWindow(QMainWindow):
                 (self.preview.height() - self.lbl_countdown.height()) // 2,
             )
         if hasattr(self, "lbl_rec"):
-            self.lbl_rec.move(12, 12)
+            self.lbl_rec.move(12, self.preview.height() - 36)
             self.lbl_rec.adjustSize()
+            self.lbl_rec.raise_()
         if hasattr(self, "flash"):
             self.flash.setGeometry(self.preview_container.rect())
         if hasattr(self, "grid_overlay"):
             self.grid_overlay.setGeometry(self.preview_container.rect())
         if hasattr(self, "lbl_qr"):
             self.lbl_qr.setFixedWidth(min(self.preview.width() // 2, 400))
+            self.lbl_qr.adjustSize()
             self.lbl_qr.move(
                 (self.preview.width() - self.lbl_qr.width()) // 2,
-                12,
+                (self.preview.height() - self.lbl_qr.height()) // 2,
             )
             self.lbl_qr.raise_()
         if hasattr(self, "lbl_focus"):
@@ -1328,12 +1330,37 @@ class MainWindow(QMainWindow):
     def _start_virtual_cam(self) -> bool:
         try:
             import os
+            import subprocess
+
             if not os.path.exists(self._mintcast_device):
-                return False
+                try:
+                    subprocess.run(
+                        ["sudo", "modprobe", "v4l2loopback", "devices=1", "video_nr=10", "exclusive_caps=1"],
+                        check=False,
+                        capture_output=True,
+                    )
+                except Exception:
+                    pass
+                if not os.path.exists(self._mintcast_device):
+                    self._show_status(
+                        f"MintCast: {self._mintcast_device} non disponibile. "
+                        "Installa v4l2loopback-dkms e riavvia.",
+                        error=True,
+                    )
+                    return False
             self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
+            self._show_status(f"MintCast attivo su {self._mintcast_device}")
             return True
+        except PermissionError:
+            self._show_status(
+                f"MintCast: permessi insufficienti per {self._mintcast_device}. "
+                "Aggiungi l'utente al gruppo video: sudo usermod -aG video $USER",
+                error=True,
+            )
+            return False
         except Exception as exc:
             logger.error("Impossibile avviare MintCast: %s", exc)
+            self._show_status(f"MintCast errore: {exc}", error=True)
             return False
 
     def _stop_virtual_cam(self) -> None:

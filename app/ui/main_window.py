@@ -710,6 +710,12 @@ class MainWindow(QMainWindow):
         self.settings.set("qr_enabled", checked)
         if not checked:
             self._qr_result = None
+            if hasattr(self, "lbl_qr"):
+                self.lbl_qr.hide()
+        else:
+            if hasattr(self, "lbl_qr"):
+                self.lbl_qr.show()
+                self.lbl_qr.raise_()
         self._show_status("QR/Barcode " + ("attivo" if checked else "disattivato"))
 
     def _on_focus_changed(self, checked: bool) -> None:

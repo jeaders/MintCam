@@ -29,6 +29,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+try:
+    from pyzbar.pyzbar import decode as qr_decode
+    _QR_AVAILABLE = True
+except Exception:
+    _QR_AVAILABLE = False
+
 from app.camera import CameraWorker, RESOLUTIONS, enumerate_cameras
 from app.recorder import Recorder
 from app.settings import Settings
@@ -76,6 +82,16 @@ class MainWindow(QMainWindow):
         self._photo_quality: int = 95
         self._burst_index: int = 0
         self._burst_timer: Optional[QTimer] = None
+        self._qr_enabled: bool = False
+        self._qr_result: Optional[str] = None
+        self._focus_assist_enabled: bool = False
+        self._face_framing_enabled: bool = False
+        self._timelapse_enabled: bool = False
+        self._timelapse_interval: int = 1
+        self._timelapse_timer: Optional[QTimer] = None
+        self._timelapse_frames: list[np.ndarray] = []
+        self._mintcast_enabled: bool = False
+        self._mintcast_device: str = "/dev/video10"
 
         self._recent_media: list[Path] = []
         self._max_recent = 8
@@ -287,6 +303,34 @@ class MainWindow(QMainWindow):
         self.chk_pause.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_pause.toggled.connect(self._on_pause_changed)
         lay.addWidget(self.chk_pause)
+        self.chk_qr = QCheckBox("QR/Barcode scanner")
+        self.chk_qr.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_qr.setEnabled(_QR_AVAILABLE)
+        self.chk_qr.toggled.connect(self._on_qr_changed)
+        lay.addWidget(self.chk_qr)
+        self.chk_focus = QCheckBox("Focus assist")
+        self.chk_focus.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_focus.toggled.connect(self._on_focus_changed)
+        lay.addWidget(self.chk_focus)
+        self.chk_face = QCheckBox("Face auto-framing")
+        self.chk_face.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_face.toggled.connect(self._on_face_changed)
+        lay.addWidget(self.chk_face)
+        self.chk_timelapse = QCheckBox("Time-lapse")
+        self.chk_timelapse.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
+        lay.addWidget(self.chk_timelapse)
+        self.spin_timelapse_interval = QSpinBox()
+        self.spin_timelapse_interval.setRange(1, 60)
+        self.spin_timelapse_interval.setSuffix(" s")
+        self.spin_timelapse_interval.setValue(1)
+        self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
+        lay.addWidget(QLabel("Intervallo time-lapse:"))
+        lay.addWidget(self.spin_timelapse_interval)
+        self.chk_mintcast = QCheckBox("MintCast virtual cam")
+        self.chk_mintcast.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_mintcast.toggled.connect(self._on_mintcast_changed)
+        lay.addWidget(self.chk_mintcast)
         self.combo_burst = QComboBox()
         self.combo_burst.addItems(["Singolo", "Burst 3", "Burst 5", "Burst 10"])
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
@@ -426,8 +470,8 @@ class MainWindow(QMainWindow):
         self.btn_exit.setMinimumHeight(44)
         self.btn_exit.clicked.connect(self.close)
 
-        lay.addWidget(self.btn_photo, 1)
-        lay.addWidget(self.btn_record, 1)
+        lay.addWidget(self.btn_photo)
+        lay.addWidget(self.btn_record)
         lay.addWidget(self.btn_folder)
         lay.addWidget(self.btn_fullscreen)
         lay.addWidget(self.btn_exit)
@@ -472,11 +516,23 @@ class MainWindow(QMainWindow):
         self._pause_preview = self.settings.get("pause_preview", False)
         self._clip_seconds = self.settings.get("clip_seconds", 0)
         self._photo_quality = self.settings.get("photo_quality", 95)
+        self._qr_enabled = self.settings.get("qr_enabled", False)
+        self._focus_assist_enabled = self.settings.get("focus_assist", False)
+        self._face_framing_enabled = self.settings.get("face_framing", False)
+        self._timelapse_enabled = self.settings.get("timelapse", False)
+        self._timelapse_interval = self.settings.get("timelapse_interval", 1)
+        self._mintcast_enabled = self.settings.get("mintcast", False)
         self.chk_mirror.setChecked(self._mirror)
         self.chk_grid.setChecked(self._grid)
         self.chk_pause.setChecked(self._pause_preview)
+        self.chk_qr.setChecked(self._qr_enabled)
+        self.chk_focus.setChecked(self._focus_assist_enabled)
+        self.chk_face.setChecked(self._face_framing_enabled)
+        self.chk_timelapse.setChecked(self._timelapse_enabled)
+        self.chk_mintcast.setChecked(self._mintcast_enabled)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
+        self.spin_timelapse_interval.setValue(self._timelapse_interval)
         burst_map = {1: 0, 3: 1, 5: 2, 10: 3}
         self.combo_burst.setCurrentIndex(burst_map.get(self._burst_count, 0))
         self._load_autostart_state()
@@ -605,6 +661,162 @@ class MainWindow(QMainWindow):
         self.settings.set("saturation", 0)
         self._show_status("Regolazioni reset")
 
+    # ------------------------------------------------------------------
+    # QR/Barcode
+    # ------------------------------------------------------------------
+    def _on_qr_changed(self, checked: bool) -> None:
+        self._qr_enabled = checked
+        self.settings.set("qr_enabled", checked)
+        if not checked:
+            self._qr_result = None
+        self._show_status("QR/Barcode " + ("attivo" if checked else "disattivato"))
+
+    def _scan_qr(self, frame: np.ndarray) -> None:
+        if not _QR_AVAILABLE or not getattr(self, "_qr_enabled", False):
+            return
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            results = qr_decode(gray)
+            if results:
+                text = " | ".join([r.data.decode("utf-8", errors="ignore") for r in results])
+                self._qr_result = text
+                self._show_status(f"QR: {text}")
+            else:
+                self._qr_result = None
+        except Exception as exc:
+            logger.debug("Errore scansione QR: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Focus assist
+    # ------------------------------------------------------------------
+    def _on_focus_changed(self, checked: bool) -> None:
+        self._focus_assist_enabled = checked
+        self.settings.set("focus_assist", checked)
+        self._show_status("Focus assist " + ("attivo" if checked else "disattivo"))
+
+    def _compute_focus_score(self, frame: np.ndarray) -> float:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+    # ------------------------------------------------------------------
+    # Face auto-framing
+    # ------------------------------------------------------------------
+    def _on_face_changed(self, checked: bool) -> None:
+        self._face_framing_enabled = checked
+        self.settings.set("face_framing", checked)
+        self._show_status("Face framing " + ("attivo" if checked else "disattivato"))
+
+    def _apply_face_framing(self, frame: np.ndarray) -> np.ndarray:
+        if not getattr(self, "_face_framing_enabled", False):
+            return frame
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        cascade = cv2.CascadeClassifier(cascade_path)
+        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+        if len(faces) == 0:
+            return frame
+        x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
+        cx, cy = x + w // 2, y + h // 2
+        fh, fw = frame.shape[:2]
+        target_zoom = 1.6
+        new_w = int(fw / target_zoom)
+        new_h = int(fh / target_zoom)
+        x1 = max(0, min(fw - new_w, cx - new_w // 2))
+        y1 = max(0, min(fh - new_h, cy - new_h // 2))
+        return frame[y1 : y1 + new_h, x1 : x1 + new_w]
+
+    # ------------------------------------------------------------------
+    # Time-lapse
+    # ------------------------------------------------------------------
+    def _on_timelapse_changed(self, checked: bool) -> None:
+        self._timelapse_enabled = checked
+        self.settings.set("timelapse", checked)
+        if checked and self._timelapse_timer is None:
+            self._timelapse_frames = []
+            self._timelapse_timer = QTimer(self)
+            self._timelapse_timer.setInterval(self._timelapse_interval * 1000)
+            self._timelapse_timer.timeout.connect(self._capture_timelapse_frame)
+            self._timelapse_timer.start()
+        elif not checked:
+            if self._timelapse_timer is not None:
+                self._timelapse_timer.stop()
+                self._timelapse_timer.deleteLater()
+                self._timelapse_timer = None
+            if len(self._timelapse_frames) > 1:
+                self._assemble_timelapse()
+        self._show_status("Time-lapse " + ("avviato" if checked else "fermo"))
+
+    def _on_timelapse_interval_changed(self, value: int) -> None:
+        self._timelapse_interval = value
+        self.settings.set("timelapse_interval", value)
+        if self._timelapse_timer is not None:
+            self._timelapse_timer.setInterval(value * 1000)
+
+    def _capture_timelapse_frame(self) -> None:
+        frame = self._processed_frame if self._processed_frame is not None else self._current_frame
+        if frame is None:
+            return
+        self._timelapse_frames.append(frame.copy())
+        self._show_status(f"Time-lapse: {len(self._timelapse_frames)} frame")
+
+    def _assemble_timelapse(self) -> None:
+        if len(self._timelapse_frames) < 2:
+            return
+        path = Storage.recordings_dir() / f"timelapse_{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
+        h, w = self._timelapse_frames[0].shape[:2]
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
+        for frame in self._timelapse_frames:
+            writer.write(frame)
+        writer.release()
+        self._show_status(f"Time-lapse salvato: {path}")
+        self.status.showMessage(f"Time-lapse salvato: {path}", 5000)
+        self._add_recent_media(path)
+
+    # ------------------------------------------------------------------
+    # MintCast virtual cam
+    # ------------------------------------------------------------------
+    def _on_mintcast_changed(self, checked: bool) -> None:
+        self._mintcast_enabled = checked
+        self.settings.set("mintcast", checked)
+        if checked:
+            ok = self._start_virtual_cam()
+            if not ok:
+                self._mintcast_enabled = False
+                self.chk_mintcast.setChecked(False)
+                self.settings.set("mintcast", False)
+        else:
+            self._stop_virtual_cam()
+        self._show_status("MintCast " + ("attivo" if self._mintcast_enabled else "disattivato"))
+
+    def _start_virtual_cam(self) -> bool:
+        try:
+            import os
+            if not os.path.exists(self._mintcast_device):
+                return False
+            self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
+            return True
+        except Exception as exc:
+            logger.error("Impossibile avviare MintCast: %s", exc)
+            return False
+
+    def _stop_virtual_cam(self) -> None:
+        try:
+            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
+                self._mintcast_writer.close()
+                self._mintcast_writer = None
+        except Exception:
+            pass
+
+    def _write_mintcast_frame(self, frame: np.ndarray) -> None:
+        if not getattr(self, "_mintcast_enabled", False):
+            return
+        try:
+            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
+                self._mintcast_writer.write(frame.tobytes())
+        except Exception as exc:
+            logger.debug("Errore scrittura MintCast: %s", exc)
+
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame
 
@@ -623,12 +835,21 @@ class MainWindow(QMainWindow):
             processed = cv2.flip(processed, 1)
         if self._grid:
             processed = self._draw_grid_on_frame(processed)
+        if getattr(self, "_face_framing_enabled", False):
+            processed = self._apply_face_framing(processed)
         self._processed_frame = processed
         if self._recording and self.recorder.is_recording():
             self.recorder.write(processed)
             if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
                 self._stop_recording()
                 self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
+        if getattr(self, "_qr_enabled", False):
+            self._scan_qr(processed)
+        if getattr(self, "_focus_assist_enabled", False):
+            score = self._compute_focus_score(processed)
+            self.lbl_status.setText(f"Focus score: {score:.1f}")
+        if getattr(self, "_mintcast_enabled", False):
+            self._write_mintcast_frame(processed)
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
         h, w = rgb.shape[:2]
         img = QImage(rgb.data, w, h, w * 3, QImage.Format_RGB888).copy()
@@ -1025,6 +1246,12 @@ class MainWindow(QMainWindow):
         self.chk_mirror.toggled.connect(self._on_mirror_changed)
         self.chk_grid.toggled.connect(self._on_grid_changed)
         self.chk_pause.toggled.connect(self._on_pause_changed)
+        self.chk_qr.toggled.connect(self._on_qr_changed)
+        self.chk_focus.toggled.connect(self._on_focus_changed)
+        self.chk_face.toggled.connect(self._on_face_changed)
+        self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
+        self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
+        self.chk_mintcast.toggled.connect(self._on_mintcast_changed)
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
         self.spin_clip.valueChanged.connect(self._on_clip_changed)
         self.spin_quality.valueChanged.connect(self._on_quality_changed)

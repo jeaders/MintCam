@@ -25,6 +25,12 @@ DEFAULTS: dict[str, Any] = {
     "pause_preview": False,
     "clip_seconds": 0,
     "photo_quality": 95,
+    "qr_enabled": False,
+    "focus_assist": False,
+    "face_framing": False,
+    "timelapse": False,
+    "timelapse_interval": 1,
+    "mintcast": False,
 }
 
 

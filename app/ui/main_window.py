@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
 
-        self.btn_photo = QPushButton("📷 Foto")
+        self.btn_photo = QPushButton("Foto")
         self.btn_photo.setObjectName("primary")
         self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
@@ -576,7 +576,9 @@ class MainWindow(QMainWindow):
         self.chk_focus.setChecked(self._focus_assist_enabled)
         self.chk_face.setChecked(self._face_framing_enabled)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
+        self.chk_mintcast.blockSignals(True)
         self.chk_mintcast.setChecked(self._mintcast_enabled)
+        self.chk_mintcast.blockSignals(False)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
         self.spin_timelapse_interval.setValue(self._timelapse_interval)

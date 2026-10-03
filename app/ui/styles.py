@@ -1,4 +1,4 @@
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 MINT = "#3eb34a"
@@ -16,10 +16,19 @@ ACCENT_ORANGE = "#f59e0b"
 ACCENT_BLUE = "#60a5fa"
 
 CARD_QSS = """
-QFrame[frameShape="4"] {
-    background-color: #1e222b;
-    border: 1px solid #2c333f;
+QGroupBox {
+    background-color: #16191f;
+    border: 1px solid #252a35;
     border-radius: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 12px;
+    color: #5cd962;
+    font-weight: 700;
 }
 """
 
@@ -43,7 +52,7 @@ def apply_dark_theme(app: QApplication) -> None:
     app.setStyleSheet(
         """
         * {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            font-family: "Segoe UI", "Ubuntu", "Roboto", "Helvetica Neue", sans-serif;
             font-size: 13px;
         }
         QMainWindow, QWidget {
@@ -62,6 +71,7 @@ def apply_dark_theme(app: QApplication) -> None:
             border-radius: 8px;
             font-weight: 600;
             min-height: 36px;
+            transition: background-color 0.2s ease;
         }
         QPushButton:hover {
             background-color: #2c333f;
@@ -102,6 +112,17 @@ def apply_dark_theme(app: QApplication) -> None:
         }
         QPushButton#record:pressed {
             background-color: #dc2626;
+        }
+        QPushButton#stop {
+            background-color: #dc2626;
+            color: #ffffff;
+            border-color: #dc2626;
+            font-weight: 700;
+            padding: 10px 18px;
+        }
+        QPushButton#stop:hover {
+            background-color: #ef4444;
+            border-color: #ef4444;
         }
         QPushButton#ghost {
             background-color: transparent;
@@ -155,25 +176,29 @@ def apply_dark_theme(app: QApplication) -> None:
             background: #2f8c39;
             border-radius: 3px;
         }
-        QGroupBox {
-            border: 1px solid #252a35;
-            border-radius: 10px;
-            margin-top: 14px;
-            padding-top: 14px;
+        QCheckBox {
             color: #9aa0ac;
-            font-weight: 600;
-            background-color: #16191f;
+            font-size: 12px;
         }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            subcontrol-position: top center;
-            padding: 0 10px;
-            color: #5cd962;
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #2c333f;
+            border-radius: 3px;
+            background-color: #1e222b;
+        }
+        QCheckBox::indicator:checked {
+            background-color: #3eb34a;
+            border-color: #3eb34a;
+        }
+        QCheckBox::indicator:hover {
+            border-color: #3a424f;
         }
         QStatusBar {
             background-color: #0f1115;
             color: #9aa0ac;
             border-top: 1px solid #1e222b;
+            padding: 4px 12px;
         }
         QToolTip {
             background-color: #252a35;

@@ -1,19 +1,18 @@
 import logging
 import shutil
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QPainter, QPixmap
+from PySide6.QtCore import QPoint, Qt, QTimer
+from PySide6.QtGui import QCursor, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
     QFrame,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -21,8 +20,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QScrollArea,
-    QSlider,
     QSizePolicy,
+    QSlider,
     QSpinBox,
     QStatusBar,
     QVBoxLayout,
@@ -35,7 +34,7 @@ try:
 except Exception:
     _QR_AVAILABLE = False
 
-from app.camera import CameraWorker, RESOLUTIONS, enumerate_cameras
+from app.camera import RESOLUTIONS, CameraWorker
 from app.recorder import Recorder
 from app.settings import Settings
 from app.storage import Storage
@@ -218,8 +217,10 @@ class MainWindow(QMainWindow):
         center_lay = QHBoxLayout(center_widget)
         center_lay.setContentsMargins(0, 0, 0, 0)
         center_lay.setSpacing(12)
+        center_lay.addStretch()
         center_lay.addWidget(logo_label)
         center_lay.addWidget(title)
+        center_lay.addStretch()
 
         lay.addWidget(center_widget, 1)
         lay.addStretch()
@@ -243,9 +244,11 @@ class MainWindow(QMainWindow):
 
     def _build_card_camera(self) -> QGroupBox:
         grp = QGroupBox("Fotocamera")
+        grp.setObjectName("sidebar-card")
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_camera = QComboBox()
+        self.combo_camera.setMinimumHeight(32)
         lay.addWidget(self.combo_camera)
         return grp
 
@@ -449,12 +452,13 @@ class MainWindow(QMainWindow):
 
         # REC
         self.lbl_rec = QLabel(self.preview_container)
-        self.lbl_rec.setAlignment(Qt.AlignCenter)
+        self.lbl_rec.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.lbl_rec.setStyleSheet(
-            "background-color: rgba(239,68,68,220); color: white; font-size: 14px; font-weight: 800;"
-            "padding: 8px 14px; border-radius: 20px;"
+            "background-color: #ef4444; color: white; font-size: 13px; font-weight: 800;"
+            "padding: 6px 12px; border-radius: 14px;"
         )
         self.lbl_rec.hide()
+        self.lbl_rec.setAttribute(Qt.WA_TransparentForMouseEvents)
         parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
 
         # QR result
@@ -466,14 +470,16 @@ class MainWindow(QMainWindow):
             "border: 2px solid #5cd962; border-radius: 10px; padding: 10px;"
         )
         self.lbl_qr.hide()
+        self.lbl_qr.setAttribute(Qt.WA_TransparentForMouseEvents)
         parent_layout.addWidget(self.lbl_qr, 0, 0, 1, 1)
 
         # Focus assist indicator
         self.lbl_focus = QLabel(self.preview_container)
         self.lbl_focus.setAlignment(Qt.AlignBottom | Qt.AlignRight)
-        self.lbl_focus.setFixedSize(18, 18)
-        self.lbl_focus.setStyleSheet("border-radius: 9px; border: 2px solid #6b7280; background-color: transparent;")
+        self.lbl_focus.setFixedSize(24, 24)
+        self.lbl_focus.setStyleSheet("border-radius: 12px; border: 3px solid #6b7280; background-color: transparent;")
         self.lbl_focus.hide()
+        self.lbl_focus.setAttribute(Qt.WA_TransparentForMouseEvents)
         parent_layout.addWidget(self.lbl_focus, 0, 0, 1, 1)
 
     def _build_footer(self) -> QWidget:
@@ -591,10 +597,10 @@ class MainWindow(QMainWindow):
         self._preview_timer.start()
 
     def _enumerate_cameras(self) -> None:
-        from app.camera import enumerate_cameras
+        from app.camera import enumerate_cameras as _enumerate
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
-        devices = enumerate_cameras()
+        devices = _enumerate()
         for idx, label in devices:
             self.combo_camera.addItem(label, idx)
         if not devices:
@@ -776,6 +782,11 @@ class MainWindow(QMainWindow):
         self._processed_frame = processed
         if self._recording and self.recorder.is_recording():
             rec_frame = processed
+            if rec_frame.ndim != 3 or rec_frame.shape[2] != 3:
+                if rec_frame.ndim == 2:
+                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_GRAY2BGR)
+                else:
+                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_BGR2RGB)
             if self._recording_frame_size is not None:
                 th, tw = self._recording_frame_size
                 h, w = rec_frame.shape[:2]
@@ -785,11 +796,13 @@ class MainWindow(QMainWindow):
                         x1 = max(0, (w - tw) // 2)
                         rec_frame = rec_frame[y1 : y1 + th, x1 : x1 + tw]
                     else:
-                        canvas = np.zeros((th, tw, 3), dtype=rec_frame.dtype)
+                        canvas = np.zeros((th, tw, 3), dtype=np.uint8)
                         y1 = max(0, (th - h) // 2)
                         x1 = max(0, (tw - w) // 2)
                         canvas[y1 : y1 + h, x1 : x1 + w] = rec_frame
                         rec_frame = canvas
+                if rec_frame.shape[:2] != (th, tw):
+                    rec_frame = cv2.resize(rec_frame, (tw, th))
             self.recorder.write(rec_frame)
             if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
                 self._stop_recording()
@@ -799,8 +812,11 @@ class MainWindow(QMainWindow):
             if getattr(self, "_qr_result", None):
                 self.lbl_qr.setText(self._qr_result)
                 self.lbl_qr.show()
+                self.lbl_qr.raise_()
             else:
-                self.lbl_qr.hide()
+                self.lbl_qr.setText("Scanning…")
+                self.lbl_qr.show()
+                self.lbl_qr.raise_()
         if getattr(self, "_focus_assist_enabled", False):
             score = self._compute_focus_score(processed)
             color = "#ef4444" if score < 80 else "#f59e0b" if score < 180 else "#5cd962"
@@ -894,22 +910,22 @@ class MainWindow(QMainWindow):
                 (self.preview.height() - self.lbl_countdown.height()) // 2,
             )
         if hasattr(self, "lbl_rec"):
-            self.lbl_rec.move(16, 16)
+            self.lbl_rec.move(12, 12)
             self.lbl_rec.adjustSize()
         if hasattr(self, "flash"):
             self.flash.setGeometry(self.preview_container.rect())
         if hasattr(self, "grid_overlay"):
             self.grid_overlay.setGeometry(self.preview_container.rect())
-            self._draw_grid()
         if hasattr(self, "lbl_qr"):
-            self.lbl_qr.setFixedWidth(self.preview.width() // 2)
+            self.lbl_qr.setFixedWidth(min(self.preview.width() // 2, 400))
             self.lbl_qr.move(
                 (self.preview.width() - self.lbl_qr.width()) // 2,
-                16,
+                12,
             )
-            self.lbl_qr.adjustSize()
+            self.lbl_qr.raise_()
         if hasattr(self, "lbl_focus"):
-            self.lbl_focus.move(self.preview.width() - 36, self.preview.height() - 36)
+            self.lbl_focus.move(self.preview.width() - 40, self.preview.height() - 40)
+            self.lbl_focus.raise_()
 
     def _draw_grid(self) -> None:
         if not getattr(self, "_grid", False):
@@ -1032,6 +1048,7 @@ class MainWindow(QMainWindow):
         self.combo_resolution.setEnabled(False)
         self.combo_format.setEnabled(False)
         self.lbl_rec.show()
+        self.lbl_rec.raise_()
         self.lbl_rec.setText("● REC")
         self._rec_timer = QTimer(self)
         self._rec_timer.setInterval(500)
@@ -1266,6 +1283,8 @@ class MainWindow(QMainWindow):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         cascade = cv2.CascadeClassifier(cascade_path)
+        if cascade.empty():
+            return frame
         faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
         if len(faces) == 0:
             return frame

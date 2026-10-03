@@ -205,8 +205,15 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(16)
 
-        logo = QLabel("📷")
-        logo.setStyleSheet("font-size: 22px; padding: 4px;")
+        logo_label = QLabel()
+        logo_label.setFixedSize(36, 36)
+        logo_pix = QPixmap(str(Path(__file__).resolve().parent.parent.parent / "assets" / "mintcam-logo.jpg"))
+        if not logo_pix.isNull():
+            logo_pix = logo_pix.scaled(36, 36, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            logo_label.setPixmap(logo_pix)
+        else:
+            logo_label.setText("📷")
+        logo_label.setStyleSheet("font-size: 22px; padding: 4px; border-radius: 8px;")
         title = QLabel("MintCam")
         title.setStyleSheet("font-size: 20px; font-weight: 800; color: #5cd962; letter-spacing: -0.3px;")
 
@@ -215,7 +222,7 @@ class MainWindow(QMainWindow):
         self.lbl_info = QLabel("")
         self.lbl_info.setStyleSheet("color: #6b7280; font-size: 12px;")
 
-        lay.addWidget(logo)
+        lay.addWidget(logo_label)
         lay.addWidget(title)
         lay.addStretch()
         lay.addWidget(self.lbl_status)

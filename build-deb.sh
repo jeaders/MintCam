@@ -8,7 +8,7 @@ BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
 
 rm -rf "$BUILD_DIR" "$DIST_DIR"
-mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/mintcam}
+mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/pixmaps,usr/share/mintcam}
 mkdir -p "$DIST_DIR"
 
 # Control
@@ -36,6 +36,9 @@ install -m 0644 "${SCRIPT_DIR}/packaging/mintcam.desktop" "$BUILD_DIR/usr/share/
 # AppStream metadata
 install -m 0644 "${SCRIPT_DIR}/mintcam.appdata.xml" "$BUILD_DIR/usr/share/metainfo/mintcam.appdata.xml"
 
+# Icon
+install -m 0644 "${SCRIPT_DIR}/assets/mintcam-logo.jpg" "$BUILD_DIR/usr/share/pixmaps/mintcam-logo.jpg"
+
 # App files
 rsync -av \
   --exclude='.venv' \
@@ -53,6 +56,7 @@ rsync -av \
 # Permissions
 chmod 0644 "$BUILD_DIR/usr/share/applications/mintcam.desktop"
 chmod 0644 "$BUILD_DIR/usr/share/metainfo/mintcam.appdata.xml"
+chmod 0644 "$BUILD_DIR/usr/share/pixmaps/mintcam-logo.jpg"
 
 # Build
 dpkg-deb --build "$BUILD_DIR" "${DIST_DIR}/${PKG_NAME}"

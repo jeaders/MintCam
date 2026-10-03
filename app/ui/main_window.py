@@ -561,6 +561,9 @@ class MainWindow(QMainWindow):
         self._clip_seconds = self.settings.get("clip_seconds", 0)
         self._photo_quality = self.settings.get("photo_quality", 95)
         self._qr_enabled = self.settings.get("qr_enabled", False)
+        if not _QR_AVAILABLE:
+            self._qr_enabled = False
+            self.settings.set("qr_enabled", False)
         self._focus_assist_enabled = self.settings.get("focus_assist", False)
         self._face_framing_enabled = self.settings.get("face_framing", False)
         self._timelapse_enabled = self.settings.get("timelapse", False)

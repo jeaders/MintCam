@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -24,6 +25,7 @@ class Recorder:
         self._width: int = 640
         self._height: int = 480
         self._ext: str = ".mp4"
+        self._assembly_thread: Optional[threading.Thread] = None
 
     def start(self, frame: np.ndarray, path: Path, fps: int = 30) -> bool:
         if self._writer is not None:
@@ -111,9 +113,25 @@ class Recorder:
         self._started = None
         if path:
             logger.info("Registrazione salvata: %s", path)
-        self._assemble(path)
-        self._cleanup_temp()
+
+        temp_dir = self._temp_dir
+        frame_index = self._frame_index
+        fps = self._fps
+        width = self._width
+        height = self._height
         self._temp_dir = None
+        self._frame_index = 0
+
+        if temp_dir is not None and frame_index > 0 and path is not None:
+            self._assembly_thread = threading.Thread(
+                target=self._assemble,
+                args=(path, temp_dir, frame_index, fps, width, height),
+                daemon=True,
+            )
+            self._assembly_thread.start()
+        else:
+            self._cleanup_temp(temp_dir)
+
         return path
 
     def elapsed(self) -> float:
@@ -124,10 +142,7 @@ class Recorder:
     def is_recording(self) -> bool:
         return self._writer is not None or self._temp_dir is not None
 
-    def _assemble(self, path: Optional[Path]) -> None:
-        if path is None or self._temp_dir is None or self._frame_index == 0:
-            return
-        temp_dir = self._temp_dir
+    def _assemble(self, path: Path, temp_dir: str, frame_index: int, fps: int, width: int, height: int) -> None:
         try:
             files = sorted(Path(temp_dir).glob("frame_*.jpg"))
             if not files:
@@ -150,7 +165,7 @@ class Recorder:
                 "-i",
                 str(list_path),
                 "-framerate",
-                str(self._fps),
+                str(fps),
                 "-c:v",
                 "libx264",
                 "-pix_fmt",
@@ -158,13 +173,16 @@ class Recorder:
                 str(path),
             ]
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            logger.info("Video assemblato: %s (%d frames)", path, self._frame_index)
+            logger.info("Video assemblato: %s (%d frames)", path, frame_index)
         except Exception as exc:
             logger.error("Errore assemblaggio video: %s", exc)
+        finally:
+            self._cleanup_temp(temp_dir)
 
-    def _cleanup_temp(self) -> None:
-        if self._temp_dir and os.path.isdir(self._temp_dir):
+    def _cleanup_temp(self, temp_dir: Optional[str] = None) -> None:
+        target = temp_dir or self._temp_dir
+        if target and os.path.isdir(target):
             try:
-                shutil.rmtree(self._temp_dir, ignore_errors=True)
+                shutil.rmtree(target, ignore_errors=True)
             except Exception:
                 pass

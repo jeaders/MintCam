@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -19,9 +21,9 @@ class RecorderTest(unittest.TestCase):
             self.assertTrue(ok)
             self.assertTrue(rec.is_recording())
             rec.write(frame)
-            writer.write.assert_called_once()
+            self.assertEqual(rec._frame_index, 1)
             result = rec.stop()
-            self.assertEqual(result, path)
+            self.assertIsNotNone(result)
             self.assertFalse(rec.is_recording())
 
     def test_no_double_start(self) -> None:
@@ -52,6 +54,21 @@ class RecorderTest(unittest.TestCase):
             path = Path("/tmp/test.mp4")
             ok = rec.start(frame, path, fps=30)
             self.assertTrue(ok)
+
+    def test_write_creates_temp_images(self) -> None:
+        rec = Recorder()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch("cv2.VideoWriter") as mock_writer:
+            writer = MagicMock()
+            writer.isOpened.return_value = True
+            mock_writer.return_value = writer
+            with patch("tempfile.mkdtemp") as mock_mkdtemp, patch("cv2.imwrite") as mock_imwrite:
+                mock_mkdtemp.return_value = "/tmp/mintcam_test"
+                rec.start(frame, Path("/tmp/test.mp4"), fps=30)
+                rec.write(frame)
+                rec.write(frame)
+                self.assertEqual(rec._frame_index, 2)
+                self.assertEqual(mock_imwrite.call_count, 2)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,8 @@
 import logging
+import os
+import shutil
+import subprocess
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
@@ -14,38 +18,85 @@ class Recorder:
         self._writer: Optional[cv2.VideoWriter] = None
         self._started: Optional[float] = None
         self._path: Optional[Path] = None
+        self._temp_dir: Optional[str] = None
+        self._frame_index: int = 0
+        self._fps: int = 30
+        self._width: int = 640
+        self._height: int = 480
+        self._ext: str = ".mp4"
 
     def start(self, frame: np.ndarray, path: Path, fps: int = 30) -> bool:
         if self._writer is not None:
             return False
         height, width = frame.shape[:2]
-        codecs = [
-            ("mp4v", ".mp4"),
-            ("XVID", ".avi"),
-            ("MJPG", ".avi"),
-        ]
-        for fourcc_code, ext in codecs:
+        self._height = height
+        self._width = width
+        self._fps = int(fps)
+        self._frame_index = 0
+        self._ext = path.suffix.lower() or ".mp4"
+
+        try:
+            self._temp_dir = tempfile.mkdtemp(prefix="mintcam_rec_")
+        except Exception as exc:
+            logger.error("Impossibile creare directory temporanea: %s", exc)
+            return False
+
+        writer = None
+        used_path = None
+        for fourcc_code, ext in [("mp4v", ".mp4"), ("XVID", ".avi"), ("MJPG", ".avi")]:
             try:
                 test_path = path.with_suffix(ext)
-                writer = cv2.VideoWriter(str(test_path), cv2.VideoWriter_fourcc(*fourcc_code), float(fps), (width, height))
+                writer = cv2.VideoWriter(
+                    str(test_path),
+                    cv2.VideoWriter_fourcc(*fourcc_code),
+                    float(fps),
+                    (width, height),
+                )
                 if writer.isOpened():
-                    self._writer = writer
-                    self._started = time.time()
-                    self._path = test_path
-                    logger.info("Registrazione avviata: %s", test_path)
-                    return True
+                    used_path = test_path
+                    self._ext = ext
+                    break
             except Exception as exc:
                 logger.debug("Fourcc %s non supportato: %s", fourcc_code, exc)
-        logger.error("Nessun codec disponibile per la registrazione video")
-        return False
+            finally:
+                if writer is not None and used_path is None:
+                    try:
+                        writer.release()
+                    except Exception:
+                        pass
+
+        if used_path is None:
+            self._cleanup_temp()
+            self._temp_dir = None
+            logger.error("Nessun codec disponibile per la registrazione video")
+            return False
+
+        self._writer = writer
+        self._started = time.time()
+        self._path = used_path
+        logger.info("Registrazione avviata: %s (codec=%s, %dx%d)", used_path, "frame-sequence", width, height)
+        return True
 
     def write(self, frame: np.ndarray) -> None:
-        if self._writer is not None:
-            try:
-                frame = np.ascontiguousarray(frame)
-                self._writer.write(frame)
-            except Exception as exc:
-                logger.error("Errore scrittura frame registrazione: %s", exc)
+        if self._temp_dir is None:
+            return
+        try:
+            frame = np.ascontiguousarray(frame)
+            if frame.ndim != 3 or frame.shape[2] != 3:
+                if frame.ndim == 2:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+                elif frame.shape[2] == 4:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            h, w = frame.shape[:2]
+            if (w, h) != (self._width, self._height):
+                frame = cv2.resize(frame, (self._width, self._height))
+            frame = np.clip(frame, 0, 255).astype(np.uint8, copy=False)
+            frame = np.ascontiguousarray(frame)
+            image_path = os.path.join(self._temp_dir, f"frame_{self._frame_index:08d}.jpg")
+            cv2.imwrite(image_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            self._frame_index += 1
+        except Exception as exc:
+            logger.error("Errore scrittura frame registrazione: %s", exc)
 
     def stop(self) -> Optional[Path]:
         if self._writer is not None:
@@ -60,6 +111,9 @@ class Recorder:
         self._started = None
         if path:
             logger.info("Registrazione salvata: %s", path)
+        self._assemble(path)
+        self._cleanup_temp()
+        self._temp_dir = None
         return path
 
     def elapsed(self) -> float:
@@ -68,4 +122,49 @@ class Recorder:
         return time.time() - self._started
 
     def is_recording(self) -> bool:
-        return self._writer is not None
+        return self._writer is not None or self._temp_dir is not None
+
+    def _assemble(self, path: Optional[Path]) -> None:
+        if path is None or self._temp_dir is None or self._frame_index == 0:
+            return
+        temp_dir = self._temp_dir
+        try:
+            files = sorted(Path(temp_dir).glob("frame_*.jpg"))
+            if not files:
+                return
+            list_path = Path(temp_dir) / "files.txt"
+            with open(list_path, "w", encoding="utf-8") as f:
+                for item in files:
+                    f.write(f"file '{item.as_posix()}'\n")
+            ffmpeg_exe = shutil.which("ffmpeg")
+            if ffmpeg_exe is None:
+                logger.error("ffmpeg non trovato, impossibile assemblare il video")
+                return
+            cmd = [
+                ffmpeg_exe,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                "-framerate",
+                str(self._fps),
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                str(path),
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            logger.info("Video assemblato: %s (%d frames)", path, self._frame_index)
+        except Exception as exc:
+            logger.error("Errore assemblaggio video: %s", exc)
+
+    def _cleanup_temp(self) -> None:
+        if self._temp_dir and os.path.isdir(self._temp_dir):
+            try:
+                shutil.rmtree(self._temp_dir, ignore_errors=True)
+            except Exception:
+                pass

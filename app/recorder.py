@@ -16,7 +16,6 @@ logger = logging.getLogger("mintcam.recorder")
 
 class Recorder:
     def __init__(self) -> None:
-        self._writer: Optional[cv2.VideoWriter] = None
         self._started: Optional[float] = None
         self._path: Optional[Path] = None
         self._temp_dir: Optional[str] = None
@@ -24,18 +23,16 @@ class Recorder:
         self._fps: int = 30
         self._width: int = 640
         self._height: int = 480
-        self._ext: str = ".mp4"
         self._assembly_thread: Optional[threading.Thread] = None
 
     def start(self, frame: np.ndarray, path: Path, fps: int = 30) -> bool:
-        if self._writer is not None:
+        if self._temp_dir is not None:
             return False
         height, width = frame.shape[:2]
         self._height = height
         self._width = width
         self._fps = int(fps)
         self._frame_index = 0
-        self._ext = path.suffix.lower() or ".mp4"
 
         try:
             self._temp_dir = tempfile.mkdtemp(prefix="mintcam_rec_")
@@ -43,40 +40,9 @@ class Recorder:
             logger.error("Impossibile creare directory temporanea: %s", exc)
             return False
 
-        writer = None
-        used_path = None
-        for fourcc_code, ext in [("mp4v", ".mp4"), ("XVID", ".avi"), ("MJPG", ".avi")]:
-            try:
-                test_path = path.with_suffix(ext)
-                writer = cv2.VideoWriter(
-                    str(test_path),
-                    cv2.VideoWriter_fourcc(*fourcc_code),
-                    float(fps),
-                    (width, height),
-                )
-                if writer.isOpened():
-                    used_path = test_path
-                    self._ext = ext
-                    break
-            except Exception as exc:
-                logger.debug("Fourcc %s non supportato: %s", fourcc_code, exc)
-            finally:
-                if writer is not None and used_path is None:
-                    try:
-                        writer.release()
-                    except Exception:
-                        pass
-
-        if used_path is None:
-            self._cleanup_temp()
-            self._temp_dir = None
-            logger.error("Nessun codec disponibile per la registrazione video")
-            return False
-
-        self._writer = writer
         self._started = time.time()
-        self._path = used_path
-        logger.info("Registrazione avviata: %s (codec=%s, %dx%d)", used_path, "frame-sequence", width, height)
+        self._path = path.with_suffix(".mp4")
+        logger.info("Registrazione avviata: %s", self._path)
         return True
 
     def write(self, frame: np.ndarray) -> None:
@@ -101,18 +67,9 @@ class Recorder:
             logger.error("Errore scrittura frame registrazione: %s", exc)
 
     def stop(self) -> Optional[Path]:
-        if self._writer is not None:
-            try:
-                self._writer.release()
-            except Exception as exc:
-                logger.error("Errore chiusura registrazione: %s", exc)
-            finally:
-                self._writer = None
         path = self._path
         self._path = None
         self._started = None
-        if path:
-            logger.info("Registrazione salvata: %s", path)
 
         temp_dir = self._temp_dir
         frame_index = self._frame_index
@@ -121,6 +78,9 @@ class Recorder:
         height = self._height
         self._temp_dir = None
         self._frame_index = 0
+
+        if path:
+            logger.info("Registrazione salvata: %s", path)
 
         if temp_dir is not None and frame_index > 0 and path is not None:
             self._assembly_thread = threading.Thread(
@@ -140,7 +100,7 @@ class Recorder:
         return time.time() - self._started
 
     def is_recording(self) -> bool:
-        return self._writer is not None or self._temp_dir is not None
+        return self._temp_dir is not None
 
     def _assemble(self, path: Path, temp_dir: str, frame_index: int, fps: int, width: int, height: int) -> None:
         try:

@@ -16,37 +16,43 @@ logger = logging.getLogger("mintcam.recorder")
 
 class Recorder:
     def __init__(self) -> None:
+        self._writer: Optional[cv2.VideoWriter] = None
         self._started: Optional[float] = None
         self._path: Optional[Path] = None
-        self._temp_dir: Optional[str] = None
-        self._frame_index: int = 0
-        self._fps: int = 30
+        self._release_thread: Optional[threading.Thread] = None
         self._width: int = 640
         self._height: int = 480
-        self._assembly_thread: Optional[threading.Thread] = None
+        self._fps: int = 30
 
     def start(self, frame: np.ndarray, path: Path, fps: int = 30) -> bool:
-        if self._temp_dir is not None:
+        if self._writer is not None:
             return False
         height, width = frame.shape[:2]
         self._height = height
         self._width = width
         self._fps = int(fps)
-        self._frame_index = 0
-
-        try:
-            self._temp_dir = tempfile.mkdtemp(prefix="mintcam_rec_")
-        except Exception as exc:
-            logger.error("Impossibile creare directory temporanea: %s", exc)
-            return False
-
-        self._started = time.time()
-        self._path = path.with_suffix(".mp4")
-        logger.info("Registrazione avviata: %s", self._path)
-        return True
+        used_path = path.with_suffix(".mp4")
+        for fourcc_code in ("mp4v", "XVID", "MJPG"):
+            try:
+                writer = cv2.VideoWriter(
+                    str(used_path),
+                    cv2.VideoWriter_fourcc(*fourcc_code),
+                    float(fps),
+                    (width, height),
+                )
+                if writer.isOpened():
+                    self._writer = writer
+                    self._started = time.time()
+                    self._path = used_path
+                    logger.info("Registrazione avviata: %s (codec=%s)", used_path, fourcc_code)
+                    return True
+            except Exception as exc:
+                logger.debug("Fourcc %s non supportato: %s", fourcc_code, exc)
+        logger.error("Nessun codec disponibile per la registrazione video")
+        return False
 
     def write(self, frame: np.ndarray) -> None:
-        if self._temp_dir is None:
+        if self._writer is None:
             return
         try:
             frame = np.ascontiguousarray(frame)
@@ -60,38 +66,20 @@ class Recorder:
                 frame = cv2.resize(frame, (self._width, self._height))
             frame = np.clip(frame, 0, 255).astype(np.uint8, copy=False)
             frame = np.ascontiguousarray(frame)
-            image_path = os.path.join(self._temp_dir, f"frame_{self._frame_index:08d}.jpg")
-            cv2.imwrite(image_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
-            self._frame_index += 1
+            self._writer.write(frame)
         except Exception as exc:
             logger.error("Errore scrittura frame registrazione: %s", exc)
 
     def stop(self) -> Optional[Path]:
+        writer = self._writer
         path = self._path
+        self._writer = None
         self._path = None
         self._started = None
-
-        temp_dir = self._temp_dir
-        frame_index = self._frame_index
-        fps = self._fps
-        width = self._width
-        height = self._height
-        self._temp_dir = None
-        self._frame_index = 0
-
         if path:
             logger.info("Registrazione salvata: %s", path)
-
-        if temp_dir is not None and frame_index > 0 and path is not None:
-            self._assembly_thread = threading.Thread(
-                target=self._assemble,
-                args=(path, temp_dir, frame_index, fps, width, height),
-                daemon=True,
-            )
-            self._assembly_thread.start()
-        else:
-            self._cleanup_temp(temp_dir)
-
+        if writer is not None:
+            self._release_writer_async(writer, path)
         return path
 
     def elapsed(self) -> float:
@@ -100,49 +88,21 @@ class Recorder:
         return time.time() - self._started
 
     def is_recording(self) -> bool:
-        return self._temp_dir is not None
+        return self._writer is not None
 
-    def _assemble(self, path: Path, temp_dir: str, frame_index: int, fps: int, width: int, height: int) -> None:
-        try:
-            files = sorted(Path(temp_dir).glob("frame_*.jpg"))
-            if not files:
-                return
-            list_path = Path(temp_dir) / "files.txt"
-            with open(list_path, "w", encoding="utf-8") as f:
-                for item in files:
-                    f.write(f"file '{item.as_posix()}'\n")
-            ffmpeg_exe = shutil.which("ffmpeg")
-            if ffmpeg_exe is None:
-                logger.error("ffmpeg non trovato, impossibile assemblare il video")
-                return
-            cmd = [
-                ffmpeg_exe,
-                "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(list_path),
-                "-framerate",
-                str(fps),
-                "-c:v",
-                "libx264",
-                "-pix_fmt",
-                "yuv420p",
-                str(path),
-            ]
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            logger.info("Video assemblato: %s (%d frames)", path, frame_index)
-        except Exception as exc:
-            logger.error("Errore assemblaggio video: %s", exc)
-        finally:
-            self._cleanup_temp(temp_dir)
-
-    def _cleanup_temp(self, temp_dir: Optional[str] = None) -> None:
-        target = temp_dir or self._temp_dir
-        if target and os.path.isdir(target):
+    def _release_writer_async(self, writer: cv2.VideoWriter, path: Optional[Path]) -> None:
+        def _release() -> None:
             try:
-                shutil.rmtree(target, ignore_errors=True)
-            except Exception:
-                pass
+                writer.release()
+            except Exception as exc:
+                logger.error("Errore chiusura registrazione: %s", exc)
+            finally:
+                if path:
+                    try:
+                        size = path.stat().st_size
+                    except Exception:
+                        size = -1
+                    logger.debug("File registrazione: %s (%s bytes)", path, size)
+
+        self._release_thread = threading.Thread(target=_release, daemon=True)
+        self._release_thread.start()

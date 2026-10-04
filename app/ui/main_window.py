@@ -1108,16 +1108,20 @@ class MainWindow(QMainWindow):
         for i, lbl in enumerate(self._recent_labels):
             if i < len(self._recent_media):
                 path = self._recent_media[i]
-                pix = QPixmap(str(path))
-                if not pix.isNull():
-                    pix = pix.scaled(72, 54, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-                    rect = pix.rect()
-                    rect.moveCenter(QPoint(36, 27))
-                    pix = pix.copy(rect)
-                    lbl.setPixmap(pix)
-                else:
+                if path.suffix.lower() in (".mp4", ".avi", ".mov", ".mkv"):
                     lbl.setPixmap(QPixmap())
-                    lbl.setText("🎬" if path.suffix.lower() == ".mp4" else "🖼")
+                    lbl.setText("🎬")
+                else:
+                    pix = QPixmap(str(path))
+                    if not pix.isNull():
+                        pix = pix.scaled(72, 54, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                        rect = pix.rect()
+                        rect.moveCenter(QPoint(36, 27))
+                        pix = pix.copy(rect)
+                        lbl.setPixmap(pix)
+                    else:
+                        lbl.setPixmap(QPixmap())
+                        lbl.setText("🖼")
                 lbl.setToolTip(str(path))
                 lbl.setCursor(QCursor(Qt.PointingHandCursor))
                 lbl.mousePressEvent = lambda ev, p=path: self._open_recent(p)

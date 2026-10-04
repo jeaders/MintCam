@@ -1,196 +1,131 @@
 # MintCam
 
-Applicazione desktop leggera per Linux Mint per usare la webcam come videocamera live, fotocamera e registratore video semplice per creator e videochiamate.
+Lightweight desktop webcam app for Linux Mint.
+Live preview, photo capture, video recording, filters, QR/Barcode scanning, focus assist, face auto-framing, time-lapse, and MintCast virtual webcam.
 
-## Funzioni disponibili
+## Screenshots
 
-- Anteprima webcam live con OpenCV
-- Scatto foto con salvataggio automatico in `~/MintCam/photos`
-- Registrazione video senza audio in `~/MintCam/recordings`
-- Selezione della webcam con nome dispositivo
-- Risoluzioni: 640x480, 1280x720, 1920x1080 (se supportata)
+<img src="https://raw.githubusercontent.com/jeaders/MintCam/main/assets/screenshot.png" alt="MintCam screenshot" width="720">
+
+## Features
+
+- Live webcam preview with OpenCV
+- Photo capture with auto-save in `~/MintCam/photos`
+- Video recording in `~/MintCam/recordings`
+- Device selection with webcam name
+- Resolutions: 640x480, 1280x720, 1920x1080 (if supported)
 - FPS: 1-120
-- Filtri: Normale, Bianco e nero, Sepia, Negativo, Contrasto elevato
-- Specchio live
-- Griglia composizione
-- Formati: 16:9, 4:3, 9:16
-- Timer foto: 3, 5, 10 secondi
-- Burst foto: 3, 5, 10 scatti
-- Regolazioni: luminosità, contrasto, saturazione
-- Focus assist con indicatore visivo
-- QR/Barcode scanner live
+- Filters: Normal, Grayscale, Sepia, Negative, High contrast
+- Live mirror
+- Composition grid
+- Formats: 16:9, 4:3, 9:16
+- Photo timer: 3, 5, 10 seconds
+- Photo burst: 3, 5, 10 shots
+- Adjustments: brightness, contrast, saturation
+- Focus assist with visual indicator
+- Live QR/Barcode scanner
 - Face auto-framing
-- Time-lapse con assemblaggio MP4 automatico
+- Time-lapse with automatic MP4 assembly
 - MintCast virtual webcam
-- Pausa anteprima
-- Limite durata registrazione
-- Qualità foto regolabile
-- Apertura cartella foto/registrazioni
-- Avvio automatico con il sistema
-- Tema scuro moderno
-- Icona personalizzata
+- Preview pause
+- Recording duration limit
+- Adjustable photo quality
+- Open photo/video folder
+- Autostart with system
+- Modern dark theme
+- Custom icon
 
-## Requisiti
+## Requirements
 
-- Linux Mint 21+ (o compatibile)
-- Python 3.10 o superiore
+- Linux Mint 21+ (or compatible)
+- Python 3.10 or newer
 - `python3-venv`, `python3-pip`
-- `v4l-utils` (per verificare le webcam)
-- `ffmpeg` (consigliato per il codec video)
-- `libxcb-cursor0` (richiesto da Qt per il plugin xcb)
-- `pyzbar`, `Pillow` (per QR/Barcode scanner)
+- `v4l-utils`
+- `ffmpeg`
+- `libxcb-cursor0`
+- `pyzbar`, `Pillow`
 
-## Installazione
+## Installation
+
+### From .deb
 
 ```bash
-sudo apt update
-sudo apt install python3 python3-venv python3-pip python3-opencv v4l-utils ffmpeg libxcb-cursor0
+sudo dpkg -i dist/mintcam_0.1.0_all.deb
+```
 
+### From source
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
 chmod +x run.sh
 ./run.sh
 ```
 
-## Installazione come applicazione desktop
+### Local install script
 
 ```bash
 chmod +x install-local.sh
 ./install-local.sh
 ```
 
-Cerca **MintCam** nel menu applicazioni di Linux Mint o avvia da terminale con `mintcam`.
+Then search for **MintCam** in the Linux Mint menu, or run:
 
-Per disinstallare:
 ```bash
+mintcam
+```
+
+### Uninstall
+
+```bash
+sudo dpkg --purge mintcam || true
 rm -f ~/.local/share/applications/mintcam.desktop
 rm -rf ~/.local/share/mintcam
 rm -f ~/.local/bin/mintcam
 ```
 
-## Pacchetto .deb
-
-```bash
-./build-deb.sh
-sudo dpkg -i dist/mintcam_0.1.0_all.deb
-```
-
-## Verifica della webcam
+## Verify webcam
 
 ```bash
 v4l2-ctl --list-devices
 v4l2-ctl --list-formats-ext -d /dev/video0
 ```
 
-## Avvio automatico all'accensione
+## Autostart
 
-1. Apri il menu → Preferenze → Applicazioni d'avvio
-2. Clicca "Aggiungi"
-3. Nome: `MintCam`
-4. Comando: `mintcam`
-5. Salva
+1. Open Menu → Preferences → Startup Applications
+2. Add
+3. Name: `MintCam`
+4. Command: `mintcam`
+5. Save
 
-## MintCast virtual webcam (opzionale)
+## MintCast virtual webcam (optional)
 
 ```bash
 sudo apt install v4l2loopback-dkms
 sudo modprobe v4l2loopback
 ```
 
-Poi attiva "MintCast virtual cam" nelle impostazioni.
+Then enable "MintCast virtual cam" in the app.
 
-## Struttura del progetto
+## Known issues
 
-```
-mintcam/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── camera.py
-│   ├── recorder.py
-│   ├── storage.py
-│   ├── settings.py
-│   └── ui/
-│       ├── __init__.py
-│       ├── main_window.py
-│       └── styles.py
-├── assets/
-├── recordings/
-├── photos/
-├── logs/
-├── tests/
-├── requirements.txt
-├── README.md
-├── run.sh
-├── mintcam
-├── install-local.sh
-├── build-deb.sh
-├── packaging/
-│   ├── mintcam-launcher
-│   └── mintcam.desktop
-├── mintcam.appdata.xml
-└── .gitignore
-```
+- Video recording is silent in this release.
+- Some preview/recording behavior depends on webcam driver capabilities.
+- If the app does not start from the menu, run `/usr/bin/mintcam` from a terminal once so the user venv is created.
 
-## Problemi comuni
+## Changelog
 
-- **Errore all'avvio: "Could not load the Qt platform plugin xcb"**: installa `libxcb-cursor0` (`sudo apt install libxcb-cursor0`) e riavvia.
-- **Webcam non trovata**: verifica che non sia usata da un altro programma (es. Zoom, Cheese).
-- **Permesso negato**: controlla di appartenere al gruppo `video` (`sudo usermod -aG video $USER`) e riavvia la sessione.
-- **Risoluzione non supportata**: prova 640x480 o 1280x720.
-- **Registrazione vuota o corrotta**: assicurati che `ffmpeg` sia installato.
-- **QR non funziona**: installa `pyzbar` e `Pillow` (`pip install pyzbar Pillow`).
+### 0.1.0
+- Initial public release
+- Live preview, photo, video recording
+- Filters, adjustments, formats, timer, burst
+- QR/Barcode, focus assist, face framing, time-lapse
+- MintCast virtual webcam
+- Dark theme and custom icon
+- .deb package for Linux Mint
 
-## Limitazioni
+## License
 
-- La registrazione video è **senza audio** nel prototipo attuale.
-- MintCast richiede `v4l2loopback` per funzionare.
-- Alcune funzionalità avanzate sono in fase di pianificazione.
-
-## Audio previsto nella versione futura
-
-Nelle versioni future verrà aggiunta la registrazione audio tramite:
-- GStreamer con pipeline `v4l2src` + `alsasrc`
-- oppure FFmpeg come processo esterno
-
-Per il prototipo attuale è stato scelto di non registrare l'audio per mantenere il codice leggero e dipendenza-minimale.
-
-## Roadmap futura
-
-### v0.2.0
-- Registrazione audio con GStreamer
-- Selezione microfono
-- Contatore FPS reale con media mobile
-- Overlay data/ora su preview e registrazione
-- Zoom digitale con slider
-
-### v0.3.0
-- Galleria miniature integrata
-- Slow-motion e time-lapse avanzato
-- Impostazioni avanzate codec
-- Supporto multi-camera contemporaneamente
-- Effetti transizione video (fade, dissolve)
-- Streaming RTMP diretto (Twitch/Youtube)
-- Remote control via HTTP/WebSocket
-
-### v1.0.0 (store)
-- Installer `.deb` pulito per Linux Mint store
-- AppStream metadata completa
-- Icone HD e tema personalizzabile
-- Traduzione EN/IT
-- Test completati
-- Documentazione utente
-
-## Contribuire
-
-1. Fork del progetto
-2. Crea un branch: `git checkout -b feature/nuova-funzione`
-3. Commit: `git commit -m "Aggiunge ..."`
-4. Push: `git push origin feature/nuova-funzione`
-5. Apri una Pull Request
-
-## Licenza
-
-Prototipo sperimentale senza licenza definita.
+Prototype without a defined license.

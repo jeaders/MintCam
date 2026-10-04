@@ -1325,6 +1325,11 @@ class MainWindow(QMainWindow):
         h, w = self._timelapse_frames[0].shape[:2]
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
+        if not writer.isOpened():
+            logger.error("Impossibile creare il video time-lapse: codec non supportato")
+            self._show_status("Time-lapse: codec non supportato", error=True)
+            self._timelapse_frames = []
+            return
         for frame in self._timelapse_frames:
             if frame.shape[:2] != (h, w):
                 frame = cv2.resize(frame, (w, h))
@@ -1335,6 +1340,7 @@ class MainWindow(QMainWindow):
         self._show_status(f"Time-lapse salvato: {path}")
         self.status.showMessage(f"Time-lapse salvato: {path}", 5000)
         self._add_recent_media(path)
+        self._timelapse_frames = []
 
     # ------------------------------------------------------------------
     # MintCast virtual cam

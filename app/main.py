@@ -2,9 +2,12 @@ import logging
 import sys
 from pathlib import Path
 
+import cv2
 from PySide6.QtWidgets import QApplication
 
 from app.ui.main_window import MainWindow
+
+cv2.setNumThreads(1)
 
 
 def setup_logging() -> None:

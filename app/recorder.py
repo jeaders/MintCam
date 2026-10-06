@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -19,7 +18,6 @@ class Recorder:
         self._writer: Optional[cv2.VideoWriter] = None
         self._started: Optional[float] = None
         self._path: Optional[Path] = None
-        self._release_thread: Optional[threading.Thread] = None
         self._width: int = 640
         self._height: int = 480
         self._fps: int = 30
@@ -79,7 +77,11 @@ class Recorder:
         if path:
             logger.info("Registrazione salvata: %s", path)
         if writer is not None:
-            self._release_writer_async(writer, path)
+            try:
+                writer.release()
+                logger.debug("Writer rilasciato correttamente")
+            except Exception as exc:
+                logger.error("Errore chiusura registrazione: %s", exc)
         return path
 
     def elapsed(self) -> float:
@@ -90,19 +92,10 @@ class Recorder:
     def is_recording(self) -> bool:
         return self._writer is not None
 
-    def _release_writer_async(self, writer: cv2.VideoWriter, path: Optional[Path]) -> None:
-        def _release() -> None:
+    def __del__(self) -> None:
+        if self._writer is not None:
             try:
-                writer.release()
-            except Exception as exc:
-                logger.error("Errore chiusura registrazione: %s", exc)
-            finally:
-                if path:
-                    try:
-                        size = path.stat().st_size
-                    except Exception:
-                        size = -1
-                    logger.debug("File registrazione: %s (%s bytes)", path, size)
-
-        self._release_thread = threading.Thread(target=_release, daemon=True)
-        self._release_thread.start()
+                self._writer.release()
+            except Exception:
+                pass
+            self._writer = None

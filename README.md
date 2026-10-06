@@ -102,12 +102,33 @@ v4l2-ctl --list-formats-ext -d /dev/video0
 
 ## MintCast virtual webcam (optional)
 
+MintCast lets other apps use MintCam as a virtual webcam.
+
 ```bash
 sudo apt install v4l2loopback-dkms
-sudo modprobe v4l2loopback
+sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1
 ```
 
-Then enable "MintCast virtual cam" in the app.
+If `/dev/video10` still does not exist after reboot, load the module again with:
+
+```bash
+sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1
+```
+
+Then enable **MintCast virtual cam** in the app.
+
+### Notes
+
+- Make sure your user is in the `video` group:
+  ```bash
+  sudo usermod -aG video $USER
+  ```
+  Log out and back in after this.
+- If you use Cheese, OBS, or other camera apps, close them before enabling MintCast.
+- To remove the virtual device:
+  ```bash
+  sudo modprobe -r v4l2loopback
+  ```
 
 ## Known issues
 

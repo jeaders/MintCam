@@ -1,13 +1,14 @@
 import logging
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QCursor, QImage, QPixmap
+from PySide6.QtCore import QPoint, QSize, Qt, QTimer
+from PySide6.QtGui import QCursor, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -89,8 +90,9 @@ class MainWindow(QMainWindow):
         self._timelapse_interval: int = 1
         self._timelapse_timer: Optional[QTimer] = None
         self._timelapse_frames: list[np.ndarray] = []
-        self._mintcast_enabled: bool = False
-        self._mintcast_device: str = "/dev/video10"
+        self._fps_counter: int = 0
+        self._fps_last_time: Optional[float] = None
+        self._actual_fps: float = 0.0
 
         self._recent_media: list[Path] = []
         self._max_recent = 8
@@ -212,6 +214,8 @@ class MainWindow(QMainWindow):
         self.lbl_status.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.lbl_info = QLabel("")
         self.lbl_info.setStyleSheet("color: #6b7280; font-size: 12px;")
+        self.lbl_fps = QLabel("")
+        self.lbl_fps.setStyleSheet("color: #6b7280; font-size: 11px;")
 
         center_widget = QWidget()
         center_lay = QHBoxLayout(center_widget)
@@ -227,6 +231,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.lbl_status)
         lay.addSpacing(16)
         lay.addWidget(self.lbl_info)
+        lay.addWidget(self.lbl_fps)
         return header
 
     def _load_logo(self) -> QPixmap:
@@ -349,10 +354,6 @@ class MainWindow(QMainWindow):
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
         lay.addWidget(QLabel("Intervallo time-lapse:"))
         lay.addWidget(self.spin_timelapse_interval)
-        self.chk_mintcast = QCheckBox("MintCast virtual cam")
-        self.chk_mintcast.setStyleSheet("color: #9aa0ac; font-size: 12px;")
-        self.chk_mintcast.toggled.connect(self._on_mintcast_changed)
-        lay.addWidget(self.chk_mintcast)
         self.combo_burst = QComboBox()
         self.combo_burst.addItems(["Singolo", "Burst 3", "Burst 5", "Burst 10"])
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
@@ -569,17 +570,14 @@ class MainWindow(QMainWindow):
         self._face_framing_enabled = self.settings.get("face_framing", False)
         self._timelapse_enabled = self.settings.get("timelapse", False)
         self._timelapse_interval = self.settings.get("timelapse_interval", 1)
-        self._mintcast_enabled = self.settings.get("mintcast", False)
         self.chk_mirror.setChecked(self._mirror)
+
         self.chk_grid.setChecked(self._grid)
         self.chk_pause.setChecked(self._pause_preview)
         self.chk_qr.setChecked(self._qr_enabled)
         self.chk_focus.setChecked(self._focus_assist_enabled)
         self.chk_face.setChecked(self._face_framing_enabled)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
-        self.chk_mintcast.blockSignals(True)
-        self.chk_mintcast.setChecked(self._mintcast_enabled)
-        self.chk_mintcast.blockSignals(False)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
         self.spin_timelapse_interval.setValue(self._timelapse_interval)
@@ -758,16 +756,6 @@ class MainWindow(QMainWindow):
         if self._timelapse_timer is not None:
             self._timelapse_timer.setInterval(value * 1000)
 
-    def _on_mintcast_changed(self, checked: bool) -> None:
-        if checked and not self._mintcast_enabled:
-            self._start_virtual_cam()
-        elif not checked and self._mintcast_enabled:
-            self._stop_virtual_cam()
-            self._show_status("MintCast disattivato")
-        self._mintcast_enabled = checked
-        if checked and self._mintcast_enabled:
-            self.settings.set("mintcast", True)
-
     def _on_frame_ready(self, frame: np.ndarray) -> None:
         self._current_frame = frame
 
@@ -822,15 +810,29 @@ class MainWindow(QMainWindow):
             self.lbl_status.setText(f"Focus score: {score:.1f}")
         else:
             self.lbl_focus.hide()
-        if getattr(self, "_mintcast_enabled", False):
-            self._write_mintcast_frame(processed)
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+
         h, w = rgb.shape[:2]
         img = QImage(rgb.data, w, h, w * 3, QImage.Format_RGB888).copy()
         pix = QPixmap.fromImage(img)
         scaled = pix.scaled(self.preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.preview.setPixmap(scaled)
         self._position_overlays()
+        self._update_fps_counter()
+
+    def _update_fps_counter(self) -> None:
+        now = time.time()
+        if self._fps_last_time is not None:
+            self._fps_counter += 1
+            elapsed = now - self._fps_last_time
+            if elapsed >= 1.0:
+                self._actual_fps = self._fps_counter / elapsed if elapsed > 0 else 0.0
+                if self._fps_counter > 0:
+                    self.lbl_fps.setText(f"{self._actual_fps:.1f} FPS")
+                self._fps_counter = 0
+                self._fps_last_time = now
+        else:
+            self._fps_last_time = now
 
     def _apply_filter(self, frame: np.ndarray) -> np.ndarray:
         f = self._current_filter
@@ -1247,7 +1249,6 @@ class MainWindow(QMainWindow):
         self.chk_face.toggled.connect(self._on_face_changed)
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
-        self.chk_mintcast.toggled.connect(self._on_mintcast_changed)
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
         self.spin_clip.valueChanged.connect(self._on_clip_changed)
         self.spin_quality.valueChanged.connect(self._on_quality_changed)
@@ -1275,7 +1276,9 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _compute_focus_score(self, frame: np.ndarray) -> float:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        logger.debug("Focus score: %.1f", score)
+        return score
 
     # ------------------------------------------------------------------
     # Face auto-framing
@@ -1288,8 +1291,10 @@ class MainWindow(QMainWindow):
             cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             cascade = cv2.CascadeClassifier(cascade_path)
             if cascade.empty():
+                logger.debug("Face framing: cascade vuoto")
                 return frame
             faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+            logger.debug("Face framing: volti rilevati=%d", len(faces))
             if len(faces) == 0:
                 return frame
             x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
@@ -1314,12 +1319,15 @@ class MainWindow(QMainWindow):
     def _capture_timelapse_frame(self) -> None:
         frame = self._processed_frame if self._processed_frame is not None else self._current_frame
         if frame is None:
+            logger.debug("Time-lapse: frame non disponibile")
             return
         self._timelapse_frames.append(frame.copy())
+        logger.debug("Time-lapse: frame catturato, totale=%d", len(self._timelapse_frames))
         self._show_status(f"Time-lapse: {len(self._timelapse_frames)} frame")
 
     def _assemble_timelapse(self) -> None:
         if len(self._timelapse_frames) < 2:
+            logger.debug("Time-lapse: frame insufficienti (%d)", len(self._timelapse_frames))
             return
         path = Storage.recordings_dir() / f"timelapse_{datetime.now():%Y-%m-%d_%H-%M-%S}.mp4"
         h, w = self._timelapse_frames[0].shape[:2]
@@ -1337,71 +1345,14 @@ class MainWindow(QMainWindow):
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             writer.write(frame)
         writer.release()
+        logger.debug("Time-lapse: video salvato in %s", path)
         self._show_status(f"Time-lapse salvato: {path}")
         self.status.showMessage(f"Time-lapse salvato: {path}", 5000)
         self._add_recent_media(path)
         self._timelapse_frames = []
 
-    # ------------------------------------------------------------------
-    # MintCast virtual cam
-    # ------------------------------------------------------------------
-    def _start_virtual_cam(self) -> bool:
-        try:
-            import os
-            import subprocess
-
-            if not os.path.exists(self._mintcast_device):
-                self._show_status(
-                    "MintCast: /dev/video10 non disponibile. "
-                    "Per attivarlo:\n"
-                    "  sudo apt install v4l2loopback-dkms\n"
-                    "  sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1\n"
-                    "  sudo usermod -aG video $USER  (poi riavvia)",
-                    error=True,
-                )
-                return False
-            try:
-                self._mintcast_writer = open(self._mintcast_device, "wb", buffering=0)
-            except PermissionError:
-                self._show_status(
-                    f"MintCast: permessi insufficienti per {self._mintcast_device}. "
-                    "Aggiungi l'utente al gruppo video: sudo usermod -aG video $USER",
-                    error=True,
-                )
-                return False
-            self._show_status(f"MintCast attivo su {self._mintcast_device}")
-            return True
-        except Exception as exc:
-            logger.error("Impossibile avviare MintCast: %s", exc)
-            self._show_status(f"MintCast errore: {exc}", error=True)
-            return False
-
-    def _stop_virtual_cam(self) -> None:
-        try:
-            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
-                self._mintcast_writer.close()
-                self._mintcast_writer = None
-        except Exception:
-            pass
-
-    def _write_mintcast_frame(self, frame: np.ndarray) -> None:
-        if not getattr(self, "_mintcast_enabled", False):
-            return
-        try:
-            if hasattr(self, "_mintcast_writer") and self._mintcast_writer is not None:
-                self._mintcast_writer.write(frame.tobytes())
-        except BrokenPipeError:
-            self._show_status("MintCast: dispositivo non disponibile", error=True)
-            self._mintcast_enabled = False
-            if hasattr(self, "chk_mintcast"):
-                self.chk_mintcast.setChecked(False)
-        except Exception as exc:
-            logger.debug("Errore scrittura MintCast: %s", exc)
-
-    # ------------------------------------------------------------------
-    # Cleanup
-    # ------------------------------------------------------------------
     def closeEvent(self, event) -> None:  # type: ignore[override]
+
         if self._fullscreen:
             self._toggle_fullscreen()
         if self._recording:

@@ -9,11 +9,14 @@
     <p>MintCam is a lightweight desktop webcam application for Linux Mint.</p>
     <p>Features:</p>
     <ul>
-      <li>Live webcam preview</li>
-      <li>Photo capture with timer</li>
-      <li>Video recording</li>
+      <li>Live webcam preview with real-time FPS counter</li>
+      <li>Photo capture with burst mode</li>
+      <li>Video recording with codec auto-detection</li>
+      <li>QR code scanner</li>
+      <li>Focus assist (Laplacian variance scoring)</li>
+      <li>Face auto-framing</li>
+      <li>Time-lapse recording</li>
       <li>Basic filters and adjustments</li>
-      <li>Multiple camera support</li>
       <li>Dark theme UI</li>
     </ul>
   </description>
@@ -31,17 +34,15 @@
     <keyword>linux mint</keyword>
   </keywords>
   <launchable type="desktop-id">mintcam.desktop</launchable>
-  <screenshots>
-    <screenshot type="default">https://mintcam.example.com/screenshot-main.png</screenshot>
-  </screenshots>
   <url type="homepage">https://github.com/jeaders/MintCam</url>
   <provides>
     <binary>mintcam</binary>
   </provides>
   <releases>
-    <release version="0.1.0" date="2026-10-02">
+    <release version="0.1.0" date="2026-10-07">
       <description>
-        <p>Initial prototype release.</p>
+        <p>Initial release with live preview, photo capture, video recording,
+        QR scanner, focus assist, face framing, and time-lapse features.</p>
       </description>
     </release>
   </releases>

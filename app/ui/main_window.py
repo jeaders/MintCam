@@ -95,6 +95,8 @@ class MainWindow(QMainWindow):
         self._timelapse_timer: Optional[QTimer] = None
         self._timelapse_frames: list[np.ndarray] = []
         self._audio_enabled: bool = False
+        self._background_blur: bool = False
+        self._blur_strength: int = 15
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
@@ -363,6 +365,16 @@ class MainWindow(QMainWindow):
         self.chk_audio.toggled.connect(self._on_audio_changed)
         lay.addWidget(self.chk_audio)
 
+        self.chk_blur_bg = QCheckBox("Sfoca sfondo (Bokeh)")
+        self.chk_blur_bg.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_blur_bg.toggled.connect(self._on_blur_bg_changed)
+        lay.addWidget(self.chk_blur_bg)
+        self.slider_blur = self._make_slider(5, 51, 15, "Intensità blur")
+        self.slider_blur["slider"].setEnabled(False)
+        self.chk_blur_bg.toggled.connect(lambda checked: self.slider_blur["slider"].setEnabled(checked))
+        lay.addWidget(self.slider_blur["label"])
+        lay.addWidget(self.slider_blur["slider"])
+
         # Streaming
         self.txt_stream_url = QLineEdit()
         self.txt_stream_url.setPlaceholderText("rtmp://server/app/key")
@@ -629,6 +641,8 @@ class MainWindow(QMainWindow):
         self._timelapse_enabled = self.settings.get("timelapse", False)
         self._timelapse_interval = self.settings.get("timelapse_interval", 1)
         self._audio_enabled = self.settings.get("audio_enabled", False)
+        self._background_blur = self.settings.get("background_blur", False)
+        self._blur_strength = self.settings.get("blur_strength", 15)
         self.chk_mirror.setChecked(self._mirror)
 
         self.chk_grid.setChecked(self._grid)
@@ -637,6 +651,8 @@ class MainWindow(QMainWindow):
         self.chk_focus.setChecked(self._focus_assist_enabled)
         self.chk_face.setChecked(self._face_framing_enabled)
         self.chk_audio.setChecked(self._audio_enabled)
+        self.chk_blur_bg.setChecked(self._background_blur)
+        self.slider_blur["slider"].setValue(self._blur_strength)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
@@ -797,6 +813,15 @@ class MainWindow(QMainWindow):
         self.settings.set("audio_enabled", checked)
         self._show_status("Audio registrazione " + ("attivo" if checked else "disattivato"))
 
+    def _on_blur_bg_changed(self, checked: bool) -> None:
+        self._background_blur = checked
+        self.settings.set("background_blur", checked)
+        self._show_status("Sfoca sfondo " + ("attivo" if checked else "disattivato"))
+
+    def _on_blur_strength_changed(self, value: int) -> None:
+        self._blur_strength = value
+        self.settings.set("blur_strength", value)
+
     def _on_timelapse_changed(self, checked: bool) -> None:
         self._timelapse_enabled = checked
         self.settings.set("timelapse", checked)
@@ -835,6 +860,8 @@ class MainWindow(QMainWindow):
             return
         processed = self._apply_adjustments(self._apply_filter(frame.copy()))
         processed = self._apply_format(processed)
+        if self._background_blur:
+            processed = self._apply_background_blur(processed)
         if self._mirror:
             processed = cv2.flip(processed, 1)
         if self._grid:
@@ -974,6 +1001,23 @@ class MainWindow(QMainWindow):
             y = int(h * i / rows)
             cv2.line(overlay, (0, y), (w, y), color, thickness)
         return overlay
+
+    def _apply_background_blur(self, frame: np.ndarray) -> np.ndarray:
+        try:
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+            lower_skin = np.array([0, 80, 130], dtype=np.uint8)
+            upper_skin = np.array([255, 120, 170], dtype=np.uint8)
+            mask = cv2.inRange(hsv, lower_skin, upper_skin)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            mask = cv2.GaussianBlur(mask.astype(float), (21, 21), 0)
+            mask_3ch = np.dstack([mask, mask, mask]) / 255.0
+            blurred = cv2.GaussianBlur(frame, (0, 0), self._blur_strength)
+            return (frame * mask_3ch + blurred * (1 - mask_3ch)).astype(np.uint8)
+        except Exception as exc:
+            logger.debug("Errore applicazione blur sfondo: %s", exc)
+            return frame
 
     def _position_overlays(self) -> None:
         if hasattr(self, "lbl_countdown"):
@@ -1322,6 +1366,8 @@ class MainWindow(QMainWindow):
         self.chk_focus.toggled.connect(self._on_focus_changed)
         self.chk_face.toggled.connect(self._on_face_changed)
         self.chk_audio.toggled.connect(self._on_audio_changed)
+        self.chk_blur_bg.toggled.connect(self._on_blur_bg_changed)
+        self.slider_blur["slider"].valueChanged.connect(self._on_blur_strength_changed)
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)

@@ -29,6 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "focus_assist": False,
     "face_framing": False,
     "audio_enabled": False,
+    "background_blur": False,
+    "blur_strength": 15,
     "timelapse": False,
     "timelapse_interval": 1,
 }

@@ -1,7 +1,7 @@
 {
     "app-id": "org.mintcam.MintCam",
     "runtime": "org.freedesktop.Platform",
-    "runtime-version": "23.08",
+    "runtime-version": "25.08",
     "sdk": "org.freedesktop.Sdk",
     "command": "mintcam",
     "finish-args": [
@@ -13,8 +13,7 @@
         "--device=all",
         "--filesystem=home",
         "--filesystem=xdg-run",
-        "--talk-name=org.freedesktop.portal.Desktop",
-        "--env=PYTHONPATH=/app/lib/python3.12/site-packages"
+        "--talk-name=org.freedesktop.portal.Desktop"
     ],
     "modules": [
         {
@@ -22,7 +21,7 @@
             "buildsystem": "simple",
             "build-commands": [
                 "python3 -m ensurepip",
-                "pip3 install --prefix=/app --no-cache-dir numpy opencv-python-headless PySide6 pyzbar Pillow"
+                "pip3 install --no-cache-dir --target=/app/lib/python3/dist-packages numpy opencv-python-headless PySide6 pyzbar Pillow"
             ]
         },
         {
@@ -32,7 +31,14 @@
                 "cp -r app /app/mintcam",
                 "install -D packaging/mintcam.desktop /app/share/applications/org.mintcam.MintCam.desktop",
                 "install -D mintcam.appdata.xml /app/share/metainfo/org.mintcam.MintCam.appdata.xml",
-                "install -D packaging/mintcam-launcher /app/bin/mintcam",
+                "cat > /app/bin/mintcam << 'LAUNCHER'",
+                "#!/bin/sh",
+                "export PYTHONPATH=/app/lib/python3/dist-packages:${PYTHONPATH}",
+                "export QT_QPA_PLATFORM_PLUGIN_PATH=/app/lib/python3/dist-packages/PySide6/Qt/plugins",
+                "cd /app/mintcam",
+                "exec python3 -m app.main",
+                "LAUNCHER",
+                "chmod +x /app/bin/mintcam",
                 "install -Dm644 assets/mintcam.png /app/share/icons/hicolor/256x256/apps/mintcam.png",
                 "install -Dm644 assets/icons/mintcam-16.png /app/share/icons/hicolor/16x16/apps/mintcam.png",
                 "install -Dm644 assets/icons/mintcam-32.png /app/share/icons/hicolor/32x32/apps/mintcam.png",
@@ -43,7 +49,6 @@
                 "install -Dm644 assets/icons/mintcam-512.png /app/share/icons/hicolor/512x512/apps/mintcam.png",
                 "install -Dm644 requirements.txt /app/mintcam/requirements.txt",
                 "sed -i 's|Exec=/usr/bin/mintcam|Exec=mintcam|' /app/share/applications/org.mintcam.MintCam.desktop",
-                "sed -i 's|Icon=mintcam|Icon=mintcam|' /app/share/applications/org.mintcam.MintCam.desktop",
                 "chmod +x /app/bin/mintcam"
             ],
             "sources": [

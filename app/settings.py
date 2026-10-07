@@ -31,6 +31,8 @@ DEFAULTS: dict[str, Any] = {
     "audio_enabled": False,
     "background_blur": False,
     "blur_strength": 15,
+    "motion_detection": False,
+    "motion_sensitivity": 20,
     "timelapse": False,
     "timelapse_interval": 1,
 }

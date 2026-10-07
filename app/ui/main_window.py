@@ -97,6 +97,11 @@ class MainWindow(QMainWindow):
         self._audio_enabled: bool = False
         self._background_blur: bool = False
         self._blur_strength: int = 15
+        self._motion_detection: bool = False
+        self._motion_sensitivity: int = 20
+        self._motion_reference: Optional[np.ndarray] = None
+        self._motion_inactive_timer: Optional[QTimer] = None
+        self._motion_last_detected: float = 0.0
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
@@ -375,6 +380,14 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.slider_blur["label"])
         lay.addWidget(self.slider_blur["slider"])
 
+        self.chk_motion = QCheckBox("Rilevamento movimento")
+        self.chk_motion.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_motion.toggled.connect(self._on_motion_changed)
+        lay.addWidget(self.chk_motion)
+        self.slider_motion = self._make_slider(5, 50, 20, "Sensibilità:")
+        lay.addWidget(self.slider_motion["label"])
+        lay.addWidget(self.slider_motion["slider"])
+
         # Streaming
         self.txt_stream_url = QLineEdit()
         self.txt_stream_url.setPlaceholderText("rtmp://server/app/key")
@@ -643,6 +656,8 @@ class MainWindow(QMainWindow):
         self._audio_enabled = self.settings.get("audio_enabled", False)
         self._background_blur = self.settings.get("background_blur", False)
         self._blur_strength = self.settings.get("blur_strength", 15)
+        self._motion_detection = self.settings.get("motion_detection", False)
+        self._motion_sensitivity = self.settings.get("motion_sensitivity", 20)
         self.chk_mirror.setChecked(self._mirror)
 
         self.chk_grid.setChecked(self._grid)
@@ -653,6 +668,8 @@ class MainWindow(QMainWindow):
         self.chk_audio.setChecked(self._audio_enabled)
         self.chk_blur_bg.setChecked(self._background_blur)
         self.slider_blur["slider"].setValue(self._blur_strength)
+        self.chk_motion.setChecked(self._motion_detection)
+        self.slider_motion["slider"].setValue(self._motion_sensitivity)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
@@ -822,6 +839,24 @@ class MainWindow(QMainWindow):
         self._blur_strength = value
         self.settings.set("blur_strength", value)
 
+    def _on_motion_changed(self, checked: bool) -> None:
+        self._motion_detection = checked
+        self.settings.set("motion_detection", checked)
+        if checked:
+            self._motion_reference = None
+            self._motion_last_detected = time.time()
+            self._show_status("Rilevamento movimento attivo")
+        else:
+            self._motion_reference = None
+            if self._motion_inactive_timer is not None:
+                self._motion_inactive_timer.stop()
+                self._motion_inactive_timer = None
+            self._show_status("Rilevamento movimento disattivato")
+
+    def _on_motion_sensitivity_changed(self, value: int) -> None:
+        self._motion_sensitivity = value
+        self.settings.set("motion_sensitivity", value)
+
     def _on_timelapse_changed(self, checked: bool) -> None:
         self._timelapse_enabled = checked
         self.settings.set("timelapse", checked)
@@ -869,6 +904,10 @@ class MainWindow(QMainWindow):
         if getattr(self, "_face_framing_enabled", False):
             processed = self._apply_face_framing(processed)
         self._processed_frame = processed
+        if getattr(self, "_motion_detection", False):
+            if self._detect_motion(processed):
+                self._handle_motion_detected()
+            self._check_inactivity()
         if self._recording and self.recorder.is_recording():
             rec_frame = processed.copy()
             if rec_frame.ndim == 2:
@@ -1018,6 +1057,42 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             logger.debug("Errore applicazione blur sfondo: %s", exc)
             return frame
+
+    # ------------------------------------------------------------------
+    # Motion detection
+    # ------------------------------------------------------------------
+    def _detect_motion(self, frame: np.ndarray) -> bool:
+        try:
+            small = cv2.resize(frame, (320, 240))
+            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (21, 21), 0)
+            if self._motion_reference is None:
+                self._motion_reference = gray.copy()
+                return False
+            diff = cv2.absdiff(gray, self._motion_reference)
+            _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+            thresh = cv2.dilate(thresh, None, iterations=2)
+            changed = int(np.count_nonzero(thresh)) / (thresh.shape[0] * thresh.shape[1]) * 100
+            self._motion_reference = gray.copy()
+            return changed > self._motion_sensitivity
+        except Exception as exc:
+            logger.debug("Errore rilevamento movimento: %s", exc)
+            return False
+
+    def _handle_motion_detected(self) -> None:
+        self._motion_last_detected = time.time()
+        if not self._recording and not self._streaming:
+            self._start_recording()
+
+    def _check_inactivity(self) -> None:
+        if not self._motion_detection:
+            return
+        if not self._recording:
+            return
+        elapsed = time.time() - self._motion_last_detected
+        if elapsed >= 10.0:
+            self._stop_recording()
+            self._show_status("Registrazione ferma: nessun movimento")
 
     def _position_overlays(self) -> None:
         if hasattr(self, "lbl_countdown"):
@@ -1368,6 +1443,8 @@ class MainWindow(QMainWindow):
         self.chk_audio.toggled.connect(self._on_audio_changed)
         self.chk_blur_bg.toggled.connect(self._on_blur_bg_changed)
         self.slider_blur["slider"].valueChanged.connect(self._on_blur_strength_changed)
+        self.chk_motion.toggled.connect(self._on_motion_changed)
+        self.slider_motion["slider"].valueChanged.connect(self._on_motion_sensitivity_changed)
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
@@ -1649,6 +1726,10 @@ class MainWindow(QMainWindow):
             self._stop_streaming()
         if self._recording:
             self._stop_recording()
+        if self._motion_inactive_timer is not None:
+            self._motion_inactive_timer.stop()
+            self._motion_inactive_timer.deleteLater()
+            self._motion_inactive_timer = None
         if self.camera is not None:
             self.camera.stop()
             self.camera = None

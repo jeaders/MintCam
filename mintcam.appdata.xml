@@ -11,6 +11,9 @@
     <ul>
       <li>Live webcam preview with real-time FPS counter</li>
       <li>Live RTMP streaming to custom server URLs</li>
+      <li>Audio recording via ALSA using ffmpeg</li>
+      <li>Background blur (Bokeh) effect using skin color segmentation</li>
+      <li>Motion detection auto-recording</li>
       <li>Photo capture with burst mode</li>
       <li>Video recording with codec auto-detection</li>
       <li>QR code scanner</li>
@@ -47,7 +50,8 @@
       <description>
         <p>Initial release with live preview, photo capture, video recording,
         QR scanner, focus assist, face framing, and time-lapse features.
-        Adds live RTMP streaming and social sharing integration.</p>
+        Adds live RTMP streaming, audio recording, background blur (Bokeh),
+        motion detection, and social sharing integration.</p>
       </description>
     </release>
   </releases>

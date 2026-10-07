@@ -28,6 +28,7 @@ DEFAULTS: dict[str, Any] = {
     "qr_enabled": False,
     "focus_assist": False,
     "face_framing": False,
+    "audio_enabled": False,
     "timelapse": False,
     "timelapse_interval": 1,
 }

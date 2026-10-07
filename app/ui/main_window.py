@@ -10,8 +10,8 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QPoint, QSize, Qt, QTimer
-from PySide6.QtGui import QCursor, QIcon, QImage, QPixmap
+from PySide6.QtCore import QPoint, Qt, QTimer
+from PySide6.QtGui import QCursor, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -94,6 +94,7 @@ class MainWindow(QMainWindow):
         self._timelapse_interval: int = 1
         self._timelapse_timer: Optional[QTimer] = None
         self._timelapse_frames: list[np.ndarray] = []
+        self._audio_enabled: bool = False
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
@@ -356,6 +357,11 @@ class MainWindow(QMainWindow):
         self.chk_face.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_face.toggled.connect(self._on_face_changed)
         lay.addWidget(self.chk_face)
+
+        self.chk_audio = QCheckBox("Audio durante registrazione")
+        self.chk_audio.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        self.chk_audio.toggled.connect(self._on_audio_changed)
+        lay.addWidget(self.chk_audio)
 
         # Streaming
         self.txt_stream_url = QLineEdit()
@@ -622,6 +628,7 @@ class MainWindow(QMainWindow):
         self._face_framing_enabled = self.settings.get("face_framing", False)
         self._timelapse_enabled = self.settings.get("timelapse", False)
         self._timelapse_interval = self.settings.get("timelapse_interval", 1)
+        self._audio_enabled = self.settings.get("audio_enabled", False)
         self.chk_mirror.setChecked(self._mirror)
 
         self.chk_grid.setChecked(self._grid)
@@ -629,6 +636,7 @@ class MainWindow(QMainWindow):
         self.chk_qr.setChecked(self._qr_enabled)
         self.chk_focus.setChecked(self._focus_assist_enabled)
         self.chk_face.setChecked(self._face_framing_enabled)
+        self.chk_audio.setChecked(self._audio_enabled)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
@@ -783,6 +791,11 @@ class MainWindow(QMainWindow):
         self._face_framing_enabled = checked
         self.settings.set("face_framing", checked)
         self._show_status("Face framing " + ("attivo" if checked else "disattivato"))
+
+    def _on_audio_changed(self, checked: bool) -> None:
+        self._audio_enabled = checked
+        self.settings.set("audio_enabled", checked)
+        self._show_status("Audio registrazione " + ("attivo" if checked else "disattivato"))
 
     def _on_timelapse_changed(self, checked: bool) -> None:
         self._timelapse_enabled = checked
@@ -1098,7 +1111,7 @@ class MainWindow(QMainWindow):
             return
         self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
-        ok = self.recorder.start(frame, path, fps=self._fps)
+        ok = self.recorder.start(frame, path, fps=self._fps, audio=self._audio_enabled)
         if not ok:
             self._show_status("Impossibile avviare la registrazione: codec non disponibile", error=True)
             return
@@ -1308,6 +1321,7 @@ class MainWindow(QMainWindow):
         self.chk_qr.toggled.connect(self._on_qr_changed)
         self.chk_focus.toggled.connect(self._on_focus_changed)
         self.chk_face.toggled.connect(self._on_face_changed)
+        self.chk_audio.toggled.connect(self._on_audio_changed)
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)

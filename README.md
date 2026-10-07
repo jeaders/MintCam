@@ -1,12 +1,12 @@
 # MintCam
 
-![MintCam Banner](assets/banner.png)
+![MintCam Banner](assets/screenshot.png)
 
 **MintCam** is a lightweight, feature-rich webcam application for Linux Mint. It provides a clean, dark-themed interface with live preview, photo capture, video recording, and advanced features like QR scanning, focus assist, face auto-framing, and time-lapse support.
 
 ## Screenshots
 
-<img src="https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png" alt="MintCam screenshot" width="720">
+<img src="https://raw.githubusercontent.com/jeaders/MintCam/main/assets/screenshot.png" alt="MintCam screenshot" width="720">
 
 ## Features
 
@@ -196,6 +196,10 @@ The package will be created in `dist/`.
 ## License
 
 Prototype without a defined license. See [PRIVATE_README.md](PRIVATE_README.md) for internal documentation.
+
+## Copyright
+
+© 2026 [Alex Mirici](https://alexmirici.netlify.app) - Web Developer
 
 ## Support
 

@@ -1,6 +1,9 @@
 import logging
 import shutil
+import subprocess
+import threading
 import time
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -18,6 +21,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QScrollArea,
@@ -93,6 +97,15 @@ class MainWindow(QMainWindow):
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
+
+        self._streaming: bool = False
+        self._stream_process: Optional[subprocess.Popen] = None
+        self._stream_url: str = ""
+        self._stream_width: int = 640
+        self._stream_height: int = 480
+        self._stream_fps: int = 30
+        self._stream_frame_count: int = 0
+        self._stream_lock = threading.Lock()
 
         self._recent_media: list[Path] = []
         self._max_recent = 8
@@ -343,6 +356,20 @@ class MainWindow(QMainWindow):
         self.chk_face.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_face.toggled.connect(self._on_face_changed)
         lay.addWidget(self.chk_face)
+
+        # Streaming
+        self.txt_stream_url = QLineEdit()
+        self.txt_stream_url.setPlaceholderText("rtmp://server/app/key")
+        self.txt_stream_url.setStyleSheet(
+            "background-color: #1e222b; color: #e6e9ef; border: 1px solid #2c333f; border-radius: 8px; padding: 6px 10px;"
+        )
+        lay.addWidget(QLabel("URL stream RTMP:"))
+        lay.addWidget(self.txt_stream_url)
+        self.btn_stream = QPushButton("Avvia stream")
+        self.btn_stream.setObjectName("ghost")
+        self.btn_stream.setMinimumHeight(32)
+        self.btn_stream.clicked.connect(self._on_stream_toggle)
+        lay.addWidget(self.btn_stream)
         self.chk_timelapse = QCheckBox("Time-lapse")
         self.chk_timelapse.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
@@ -511,6 +538,27 @@ class MainWindow(QMainWindow):
         self.btn_fullscreen.setMinimumHeight(44)
         self.btn_fullscreen.clicked.connect(self._toggle_fullscreen)
 
+        # Share buttons
+        self.btn_share_telegram = QPushButton("Condividi Telegram")
+        self.btn_share_telegram.setObjectName("ghost")
+        self.btn_share_telegram.setMinimumHeight(44)
+        self.btn_share_telegram.clicked.connect(self._share_to_telegram)
+
+        self.btn_share_discord = QPushButton("Condividi Discord")
+        self.btn_share_discord.setObjectName("ghost")
+        self.btn_share_discord.setMinimumHeight(44)
+        self.btn_share_discord.clicked.connect(self._share_to_discord)
+
+        self.btn_share_github = QPushButton("Scarica .deb")
+        self.btn_share_github.setObjectName("ghost")
+        self.btn_share_github.setMinimumHeight(44)
+        self.btn_share_github.clicked.connect(self._share_to_github)
+
+        self.btn_share_gdrive = QPushButton("Condividi Drive")
+        self.btn_share_gdrive.setObjectName("ghost")
+        self.btn_share_gdrive.setMinimumHeight(44)
+        self.btn_share_gdrive.clicked.connect(self._share_to_google_drive)
+
         self.btn_exit = QPushButton("Esci")
         self.btn_exit.setObjectName("ghost")
         self.btn_exit.setMinimumHeight(44)
@@ -520,6 +568,10 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.btn_record)
         lay.addWidget(self.btn_folder)
         lay.addWidget(self.btn_fullscreen)
+        lay.addWidget(self.btn_share_telegram)
+        lay.addWidget(self.btn_share_discord)
+        lay.addWidget(self.btn_share_github)
+        lay.addWidget(self.btn_share_gdrive)
         lay.addWidget(self.btn_exit)
         return footer
 
@@ -792,6 +844,15 @@ class MainWindow(QMainWindow):
             if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
                 self._stop_recording()
                 self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
+        if self._streaming:
+            stream_frame = processed.copy()
+            if stream_frame.ndim == 2:
+                stream_frame = cv2.cvtColor(stream_frame, cv2.COLOR_GRAY2BGR)
+            if stream_frame.ndim == 3 and stream_frame.shape[2] == 4:
+                stream_frame = cv2.cvtColor(stream_frame, cv2.COLOR_BGRA2BGR)
+            if stream_frame.shape[:2] != (self._stream_height, self._stream_width):
+                stream_frame = cv2.resize(stream_frame, (self._stream_width, self._stream_height))
+            self._stream_frame(stream_frame)
         if getattr(self, "_qr_enabled", False):
             self._scan_qr(processed)
             self.lbl_qr.setText("Scanning…" if not getattr(self, "_qr_result", None) else self._qr_result)
@@ -1351,10 +1412,181 @@ class MainWindow(QMainWindow):
         self._add_recent_media(path)
         self._timelapse_frames = []
 
+    # ------------------------------------------------------------------
+    # Live streaming (RTMP)
+    # ------------------------------------------------------------------
+    def _on_stream_toggle(self) -> None:
+        if self._streaming:
+            self._stop_streaming()
+        else:
+            self._start_streaming()
+
+    def _start_streaming(self) -> None:
+        url = self.txt_stream_url.text().strip()
+        if not url:
+            self._show_status("Inserisci un URL di stream RTMP", error=True)
+            return
+        if not url.startswith("rtmp://") and not url.startswith("rtmps://"):
+            self._show_status("URL RTMP non valido", error=True)
+            return
+        self._stream_url = url
+        self._stream_width = self._width
+        self._stream_height = self._height
+        self._stream_fps = self._fps
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-f", "rawvideo",
+            "-pix_fmt", "bgr24",
+            "-s", f"{self._stream_width}x{self._stream_height}",
+            "-r", str(self._stream_fps),
+            "-i", "pipe:0",
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-pix_fmt", "yuv420p",
+            "-f", "flv",
+            url,
+        ]
+        try:
+            self._stream_process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            self._show_status("ffmpeg non trovato: installa ffmpeg", error=True)
+            return
+        except Exception as exc:
+            self._show_status(f"Errore stream: {exc}", error=True)
+            return
+
+        self._streaming = True
+        self._stream_frame_count = 0
+        self.btn_stream.setText("Ferma stream")
+        self.btn_stream.setObjectName("stop")
+        self.btn_stream.style().unpolish(self.btn_stream)
+        self.btn_stream.style().polish(self.btn_stream)
+        self.combo_resolution.setEnabled(False)
+        self.lbl_rec.show()
+        self.lbl_rec.raise_()
+        self.lbl_rec.setText("● STREAM")
+        self._show_status(f"Stream avviato: {url}")
+
+    def _stop_streaming(self) -> None:
+        if self._stream_process is not None:
+            try:
+                if self._stream_process.stdin is not None:
+                    self._stream_process.stdin.close()
+            except Exception:
+                pass
+            try:
+                self._stream_process.terminate()
+                self._stream_process.wait(timeout=5)
+            except Exception:
+                try:
+                    self._stream_process.kill()
+                except Exception:
+                    pass
+            self._stream_process = None
+        self._streaming = False
+        self._stream_frame_count = 0
+        self.btn_stream.setText("Avvia stream")
+        self.btn_stream.setObjectName("ghost")
+        self.btn_stream.style().unpolish(self.btn_stream)
+        self.btn_stream.style().polish(self.btn_stream)
+        self.combo_resolution.setEnabled(True)
+        if not self._recording:
+            self.lbl_rec.hide()
+        self._show_status("Stream fermato")
+
+    def _stream_frame(self, frame: np.ndarray) -> None:
+        if not self._streaming or self._stream_process is None:
+            return
+        if self._stream_process.stdin is None:
+            return
+        with self._stream_lock:
+            if self._stream_process is None or self._stream_process.stdin is None:
+                return
+            try:
+                data = frame.tobytes()
+                self._stream_process.stdin.write(data)
+                self._stream_process.stdin.flush()
+                self._stream_frame_count += 1
+            except (BrokenPipeError, OSError):
+                self._streaming = False
+                self.btn_stream.setText("Avvia stream")
+                self.btn_stream.setObjectName("ghost")
+                self.btn_stream.style().unpolish(self.btn_stream)
+                self.btn_stream.style().polish(self.btn_stream)
+                self.combo_resolution.setEnabled(True)
+                if not self._recording:
+                    self.lbl_rec.hide()
+                self._stream_process = None
+                self._show_status("Stream interrotto (connessione chiusa)", error=True)
+
+    # ------------------------------------------------------------------
+    # Social sharing
+    # ------------------------------------------------------------------
+    def _latest_media_path(self) -> Optional[Path]:
+        if self._recent_media:
+            return self._recent_media[0]
+        for folder in (Storage.recordings_dir(), Storage.photos_dir()):
+            if folder.exists():
+                files = sorted(folder.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if files:
+                    return files[0]
+        return None
+
+    def _share_to_telegram(self) -> None:
+        path = self._latest_media_path()
+        if path is None or not path.exists():
+            self._show_status("Nessun media recente da condividere", error=True)
+            return
+        try:
+            import urllib.parse
+            text = urllib.parse.quote(f"MintCam - {path.name}")
+            url = f"https://t.me/share/url?url={urllib.parse.quote(str(path.name))}&text={text}"
+            webbrowser.open(url)
+            self._show_status(f"Aperto Telegram per condividere: {path.name}")
+        except Exception as exc:
+            self._show_status(f"Errore condivisione Telegram: {exc}", error=True)
+
+    def _share_to_discord(self) -> None:
+        path = self._latest_media_path()
+        if path is None or not path.exists():
+            self._show_status("Nessun media recente da condividere", error=True)
+            return
+        try:
+            url = "https://discord.com/channels/@me"
+            webbrowser.open(url)
+            self._show_status("Aperto Discord. Copia il file dalla cartella recenti.")
+        except Exception as exc:
+            self._show_status(f"Errore condivisione Discord: {exc}", error=True)
+
+    def _share_to_github(self) -> None:
+        try:
+            url = "https://github.com/jeaders/MintCam/releases/latest"
+            webbrowser.open(url)
+            self._show_status("Aperte release GitHub")
+        except Exception as exc:
+            self._show_status(f"Errore accesso GitHub: {exc}", error=True)
+
+    def _share_to_google_drive(self) -> None:
+        try:
+            url = "https://drive.google.com/drive/folders/my-drive"
+            webbrowser.open(url)
+            self._show_status("Aperto Google Drive")
+        except Exception as exc:
+            self._show_status(f"Errore accesso Google Drive: {exc}", error=True)
+
     def closeEvent(self, event) -> None:  # type: ignore[override]
 
         if self._fullscreen:
             self._toggle_fullscreen()
+        if self._streaming:
+            self._stop_streaming()
         if self._recording:
             self._stop_recording()
         if self.camera is not None:

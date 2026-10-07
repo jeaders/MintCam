@@ -30,7 +30,6 @@ DEFAULTS: dict[str, Any] = {
     "face_framing": False,
     "timelapse": False,
     "timelapse_interval": 1,
-    "mintcast": False,
 }
 
 

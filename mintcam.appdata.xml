@@ -35,9 +35,11 @@
   </keywords>
   <launchable type="desktop-id">mintcam.desktop</launchable>
   <url type="homepage">https://github.com/jeaders/MintCam</url>
+  <url type="screenshot">https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png</url>
   <provides>
     <binary>mintcam</binary>
   </provides>
+  <icon type="stock">mintcam-logo</icon>
   <releases>
     <release version="0.1.0" date="2026-10-07">
       <description>

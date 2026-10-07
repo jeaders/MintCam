@@ -1,9 +1,9 @@
-mintcam (0.1.0-1) unstable; urgency=medium
+mintcam (0.1.0) unstable; urgency=medium
 
   * Initial release.
-  * Features: live preview, photo/video capture, audio recording,
+  * Features: live preview, photo capture, video recording with audio,
     RTMP streaming, QR scanner, focus assist, face auto-framing,
-    time-lapse, motion detection, background blur, presets, zoom,
-    social sharing.
+    time-lapse, motion detection, background blur (Bokeh), preset
+    manager, digital zoom, social sharing, and dark theme UI.
 
  -- Alex Mirici <hilliedmikerano@gmail.com>  Wed, 07 Oct 2026 19:58:00 +0000

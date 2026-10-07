@@ -22,4 +22,6 @@ photos/
 !assets/logo.jpg
 !assets/banner.png
 !assets/screenshot.png
+build-dir/
+.flatpak-builder/
 PRIVATE_README.md

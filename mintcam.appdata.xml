@@ -44,7 +44,7 @@
   <provides>
     <binary>mintcam</binary>
   </provides>
-  <icon type="stock">mintcam-logo</icon>
+  <icon type="stock">mintcam</icon>
   <releases>
     <release version="0.1.0" date="2026-10-07">
       <description>

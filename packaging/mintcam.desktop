@@ -2,7 +2,7 @@
 Name=MintCam
 Comment=Webcam app for Linux Mint
 Exec=/usr/bin/mintcam
-Icon=mintcam-logo
+Icon=mintcam
 Terminal=false
 Type=Application
 Categories=AudioVideo;Video;Recorder;

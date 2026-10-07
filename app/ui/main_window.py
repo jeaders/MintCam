@@ -1524,7 +1524,7 @@ class MainWindow(QMainWindow):
                     "[Desktop Entry]\n"
                     "Name=MintCam\n"
                     f"Exec={launcher}\n"
-                    "Icon=camera-photo\n"
+                    "Icon=mintcam\n"
                     "Terminal=false\n"
                     "Type=Application\n"
                     "Categories=AudioVideo;Video;Recorder;\n"

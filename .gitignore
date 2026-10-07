@@ -25,3 +25,5 @@ photos/
 build-dir/
 .flatpak-builder/
 PRIVATE_README.md
+flatpak-wheels/
+flatpak-wheels.tar.gz

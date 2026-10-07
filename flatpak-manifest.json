@@ -21,7 +21,14 @@
             "buildsystem": "simple",
             "build-commands": [
                 "python3 -m ensurepip",
-                "pip3 install --no-cache-dir --target=/app/lib/python3/dist-packages numpy opencv-python-headless PySide6 pyzbar Pillow"
+                "mkdir /tmp/wheels && tar xzf flatpak-wheels.tar.gz -C /tmp/wheels",
+                "pip3 install --no-cache-dir --no-index --find-links=/tmp/wheels --target=/app/lib/python3/dist-packages opencv-python-headless==4.14.0.94 numpy==2.5.3 PySide6==6.11.2 pyzbar==0.1.9 Pillow==12.3.0"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "path": "flatpak-wheels.tar.gz"
+                }
             ]
         },
         {

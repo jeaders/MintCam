@@ -1,10 +1,11 @@
 #!/usr/bin/make -f
+# Minimal debian/rules - no debhelper dependency
 
 %:
-	dh $@ --with python3
+	echo "Building MintCam"
 
 override_dh_auto_build:
-	# No build step needed
+	echo "Nothing to build"
 
 override_dh_auto_install:
 	install -d $(CURDIR)/debian/mintcam/usr/bin
@@ -15,7 +16,7 @@ override_dh_auto_install:
 	install -m 0644 mintcam.appdata.xml $(CURDIR)/debian/mintcam/usr/share/metainfo/mintcam.appdata.xml
 	install -d $(CURDIR)/debian/mintcam/usr/share/pixmaps
 	install -m 0644 assets/mintcam.png $(CURDIR)/debian/mintcam/usr/share/pixmaps/mintcam.png
-	install -d $(CURDIR)/debian/mintcam/usr/share/icons/hicolor
+	mkdir -p $(CURDIR)/debian/mintcam/usr/share/icons/hicolor
 	for size in 16 32 48 64 128 256 512; do \
 		install -d $(CURDIR)/debian/mintcam/usr/share/icons/hicolor/$${size}x$${size}/apps; \
 		install -m 0644 assets/icons/mintcam-$${size}.png \

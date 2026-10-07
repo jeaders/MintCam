@@ -1,11 +1,11 @@
 # MintCam
 
 Lightweight desktop webcam app for Linux Mint.
-Live preview, photo capture, video recording, filters, QR/Barcode scanning, focus assist, face auto-framing, time-lapse, and MintCast virtual webcam.
+Live preview, photo capture, video recording, filters, QR/Barcode scanning, focus assist, face auto-framing, and time-lapse.
 
 ## Screenshots
 
-<img src="https://raw.githubusercontent.com/jeaders/MintCam/main/assets/screenshot.png" alt="MintCam screenshot" width="720">
+<img src="https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png" alt="MintCam preview" width="720">
 
 ## Features
 
@@ -26,7 +26,6 @@ Live preview, photo capture, video recording, filters, QR/Barcode scanning, focu
 - Live QR/Barcode scanner
 - Face auto-framing
 - Time-lapse with automatic MP4 assembly
-- MintCast virtual webcam
 - Preview pause
 - Recording duration limit
 - Adjustable photo quality
@@ -100,36 +99,6 @@ v4l2-ctl --list-formats-ext -d /dev/video0
 4. Command: `mintcam`
 5. Save
 
-## MintCast virtual webcam (optional)
-
-MintCast lets other apps use MintCam as a virtual webcam.
-
-```bash
-sudo apt install v4l2loopback-dkms
-sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1
-```
-
-If `/dev/video10` still does not exist after reboot, load the module again with:
-
-```bash
-sudo modprobe v4l2loopback devices=1 video_nr=10 exclusive_caps=1
-```
-
-Then enable **MintCast virtual cam** in the app.
-
-### Notes
-
-- Make sure your user is in the `video` group:
-  ```bash
-  sudo usermod -aG video $USER
-  ```
-  Log out and back in after this.
-- If you use Cheese, OBS, or other camera apps, close them before enabling MintCast.
-- To remove the virtual device:
-  ```bash
-  sudo modprobe -r v4l2loopback
-  ```
-
 ## Known issues
 
 - Video recording is silent in this release.
@@ -143,7 +112,6 @@ Then enable **MintCast virtual cam** in the app.
 - Live preview, photo, video recording
 - Filters, adjustments, formats, timer, burst
 - QR/Barcode, focus assist, face framing, time-lapse
-- MintCast virtual webcam
 - Dark theme and custom icon
 - .deb package for Linux Mint
 

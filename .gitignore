@@ -18,4 +18,7 @@ photos/
 *.jpeg
 *.png
 *.log
+!assets/mintcam-logo.jpg
+!assets/logo.jpg
+!assets/banner.png
 PRIVATE_README.md

@@ -34,6 +34,20 @@ class SettingsTest(unittest.TestCase):
         s.set("fps", 60)
         self.assertTrue(Path(s.FILE).exists())
 
+    def test_preset_save_and_load(self) -> None:
+        s = Settings()
+        values = {"filter": "Sepia", "brightness": 10}
+        s.save_preset("vintage", values)
+        self.assertEqual(s.get_presets(), {"vintage": values})
+        s2 = Settings()
+        self.assertEqual(s2.get_presets(), {"vintage": values})
+
+    def test_preset_delete(self) -> None:
+        s = Settings()
+        s.save_preset("test", {"filter": "Normale"})
+        s.delete_preset("test")
+        self.assertEqual(s.get_presets(), {})
+
 
 if __name__ == "__main__":
     unittest.main()

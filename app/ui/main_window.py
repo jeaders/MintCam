@@ -102,6 +102,7 @@ class MainWindow(QMainWindow):
         self._motion_reference: Optional[np.ndarray] = None
         self._motion_inactive_timer: Optional[QTimer] = None
         self._motion_last_detected: float = 0.0
+        self._presets: dict = {}
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
@@ -206,6 +207,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self.status)
 
         self._restore_settings()
+        self._refresh_presets()
         self._install_shortcuts()
         self._connect_signals()
 
@@ -387,6 +389,32 @@ class MainWindow(QMainWindow):
         self.slider_motion = self._make_slider(5, 50, 20, "Sensibilità:")
         lay.addWidget(self.slider_motion["label"])
         lay.addWidget(self.slider_motion["slider"])
+
+        # Preset manager
+        self.lbl_preset_title = QLabel("Preset")
+        self.lbl_preset_title.setStyleSheet("color: #5cd962; font-size: 11px; font-weight: 700;")
+        lay.addWidget(self.lbl_preset_title)
+        self.combo_preset = QComboBox()
+        self.combo_preset.setMinimumHeight(32)
+        lay.addWidget(self.combo_preset)
+        preset_btns = QHBoxLayout()
+        preset_btns.setSpacing(6)
+        self.btn_save_preset = QPushButton("Salva")
+        self.btn_save_preset.setObjectName("ghost")
+        self.btn_save_preset.setMinimumHeight(28)
+        self.btn_save_preset.clicked.connect(self._save_preset)
+        self.btn_load_preset = QPushButton("Carica")
+        self.btn_load_preset.setObjectName("ghost")
+        self.btn_load_preset.setMinimumHeight(28)
+        self.btn_load_preset.clicked.connect(self._load_preset)
+        self.btn_delete_preset = QPushButton("Elimina")
+        self.btn_delete_preset.setObjectName("ghost")
+        self.btn_delete_preset.setMinimumHeight(28)
+        self.btn_delete_preset.clicked.connect(self._delete_preset)
+        preset_btns.addWidget(self.btn_save_preset)
+        preset_btns.addWidget(self.btn_load_preset)
+        preset_btns.addWidget(self.btn_delete_preset)
+        lay.addLayout(preset_btns)
 
         # Streaming
         self.txt_stream_url = QLineEdit()
@@ -1093,6 +1121,90 @@ class MainWindow(QMainWindow):
         if elapsed >= 10.0:
             self._stop_recording()
             self._show_status("Registrazione ferma: nessun movimento")
+
+    # ------------------------------------------------------------------
+    # Preset manager
+    # ------------------------------------------------------------------
+    def _refresh_presets(self) -> None:
+        self._presets = self.settings.get_presets()
+        self.combo_preset.blockSignals(True)
+        self.combo_preset.clear()
+        self.combo_preset.addItem("Predefinito", "<default>")
+        for name in sorted(self._presets.keys()):
+            self.combo_preset.addItem(name, name)
+        self.combo_preset.blockSignals(False)
+
+    def _current_settings_snapshot(self) -> dict:
+        burst_map = {0: 1, 1: 3, 2: 5, 3: 10}
+        return {
+            "filter": self.combo_filter.currentText(),
+            "format": self.combo_format.currentText(),
+            "resolution": self.combo_resolution.currentText(),
+            "fps": self.combo_fps.value(),
+            "brightness": self.slider_brightness["slider"].value(),
+            "contrast": self.slider_contrast["slider"].value(),
+            "saturation": self.slider_saturation["slider"].value(),
+            "mirror": self.chk_mirror.isChecked(),
+            "grid": self.chk_grid.isChecked(),
+            "blur_strength": self.slider_blur["slider"].value(),
+            "burst_count": burst_map.get(self.combo_burst.currentIndex(), 1),
+        }
+
+    def _save_preset(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "Salva preset", "Nome preset:")
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        self.settings.save_preset(name, self._current_settings_snapshot())
+        self._refresh_presets()
+        idx = self.combo_preset.findData(name)
+        if idx >= 0:
+            self.combo_preset.setCurrentIndex(idx)
+        self._show_status(f"Preset salvato: {name}")
+
+    def _load_preset(self) -> None:
+        key = self.combo_preset.currentData()
+        if key == "<default>":
+            self._show_status("Preset predefinito caricato")
+            return
+        presets = self._presets
+        if key not in presets:
+            return
+        values = presets[key]
+        self.combo_filter.setCurrentText(values.get("filter", "Normale"))
+        self._current_filter = self.combo_filter.currentText()
+        self.combo_format.setCurrentText(values.get("format", "16:9"))
+        self._current_format = self.combo_format.currentText()
+        self.combo_resolution.setCurrentText(values.get("resolution", "640x480"))
+        self.combo_fps.setValue(values.get("fps", 30))
+        self.slider_brightness["slider"].setValue(values.get("brightness", 0))
+        self.slider_contrast["slider"].setValue(values.get("contrast", 0))
+        self.slider_saturation["slider"].setValue(values.get("saturation", 0))
+        self.chk_mirror.setChecked(values.get("mirror", False))
+        self.chk_grid.setChecked(values.get("grid", False))
+        self.slider_blur["slider"].setValue(values.get("blur_strength", 15))
+        burst_map = {1: 0, 3: 1, 5: 2, 10: 3}
+        self.combo_burst.setCurrentIndex(burst_map.get(values.get("burst_count", 1), 0))
+        wh = RESOLUTIONS.get(self.combo_resolution.currentText(), (640, 480))
+        self._width, self._height = wh
+        if self.camera is not None:
+            self.camera.set_resolution(self._width, self._height)
+            self.camera.set_fps(self.combo_fps.value())
+        self._update_header_info()
+        self._show_status(f"Preset caricato: {key}")
+
+    def _delete_preset(self) -> None:
+        key = self.combo_preset.currentData()
+        if key == "<default>":
+            self._show_status("Impossibile eliminare il preset predefinito", error=True)
+            return
+        if key not in self._presets:
+            self._show_status("Nessun preset da eliminare", error=True)
+            return
+        self.settings.delete_preset(key)
+        self._refresh_presets()
+        self._show_status(f"Preset eliminato: {key}")
 
     def _position_overlays(self) -> None:
         if hasattr(self, "lbl_countdown"):

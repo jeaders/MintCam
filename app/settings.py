@@ -35,6 +35,7 @@ DEFAULTS: dict[str, Any] = {
     "motion_sensitivity": 20,
     "timelapse": False,
     "timelapse_interval": 1,
+    "presets": {},
 }
 
 
@@ -67,4 +68,19 @@ class Settings:
 
     def set(self, key: str, value: Any) -> None:
         self._data[key] = value
+        self.save()
+
+    def get_presets(self) -> dict:
+        return dict(self._data.get("presets", {}))
+
+    def save_preset(self, name: str, values: dict) -> None:
+        presets = self._data.get("presets", {})
+        presets[name] = values
+        self._data["presets"] = presets
+        self.save()
+
+    def delete_preset(self, name: str) -> None:
+        presets = self._data.get("presets", {})
+        presets.pop(name, None)
+        self._data["presets"] = presets
         self.save()

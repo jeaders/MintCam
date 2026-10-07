@@ -1,6 +1,6 @@
 # MintCam
 
-![MintCam Banner](assets/screenshot.png)
+![MintCam Banner](assets/banner.png)
 
 **MintCam** is a lightweight, feature-rich webcam application for Linux Mint. It provides a clean, dark-themed interface with live preview, photo capture, video recording, and advanced features like QR scanning, focus assist, face auto-framing, and time-lapse support.
 

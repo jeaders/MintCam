@@ -416,6 +416,11 @@ class MainWindow(QMainWindow):
         preset_btns.addWidget(self.btn_delete_preset)
         lay.addLayout(preset_btns)
 
+        self.slider_zoom = self._make_slider(100, 300, 100, "Zoom:")
+        self.slider_zoom["slider"].valueChanged.connect(self._on_zoom_changed)
+        lay.addWidget(self.slider_zoom["label"])
+        lay.addWidget(self.slider_zoom["slider"])
+
         # Streaming
         self.txt_stream_url = QLineEdit()
         self.txt_stream_url.setPlaceholderText("rtmp://server/app/key")
@@ -667,6 +672,7 @@ class MainWindow(QMainWindow):
         self.slider_brightness["slider"].setValue(self._brightness)
         self.slider_contrast["slider"].setValue(self._contrast)
         self.slider_saturation["slider"].setValue(self._saturation)
+        self._zoom = self.settings.get("zoom", 100)
         self._mirror = self.settings.get("mirror", False)
         self._grid = self.settings.get("grid", False)
         self._burst_count = self.settings.get("burst_count", 1)
@@ -698,6 +704,7 @@ class MainWindow(QMainWindow):
         self.slider_blur["slider"].setValue(self._blur_strength)
         self.chk_motion.setChecked(self._motion_detection)
         self.slider_motion["slider"].setValue(self._motion_sensitivity)
+        self.slider_zoom["slider"].setValue(self._zoom)
         self.chk_timelapse.setChecked(self._timelapse_enabled)
         self.spin_clip.setValue(self._clip_seconds)
         self.spin_quality.setValue(self._photo_quality)
@@ -788,6 +795,10 @@ class MainWindow(QMainWindow):
     def _on_saturation_changed(self, value: int) -> None:
         self._saturation = value
         self.settings.set("saturation", value)
+
+    def _on_zoom_changed(self, value: int) -> None:
+        self._zoom = value
+        self.settings.set("zoom", value)
 
     def _on_mirror_changed(self, checked: bool) -> None:
         self._mirror = checked
@@ -923,6 +934,7 @@ class MainWindow(QMainWindow):
             return
         processed = self._apply_adjustments(self._apply_filter(frame.copy()))
         processed = self._apply_format(processed)
+        processed = self._apply_zoom(processed)
         if self._background_blur:
             processed = self._apply_background_blur(processed)
         if self._mirror:
@@ -1084,6 +1096,22 @@ class MainWindow(QMainWindow):
             return (frame * mask_3ch + blurred * (1 - mask_3ch)).astype(np.uint8)
         except Exception as exc:
             logger.debug("Errore applicazione blur sfondo: %s", exc)
+            return frame
+
+    def _apply_zoom(self, frame: np.ndarray) -> np.ndarray:
+        if self._zoom <= 100:
+            return frame
+        try:
+            h, w = frame.shape[:2]
+            zoom_factor = self._zoom / 100.0
+            new_w = int(w / zoom_factor)
+            new_h = int(h / zoom_factor)
+            x = (w - new_w) // 2
+            y = (h - new_h) // 2
+            cropped = frame[y : y + new_h, x : x + new_w]
+            return cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
+        except Exception as exc:
+            logger.debug("Errore zoom: %s", exc)
             return frame
 
     # ------------------------------------------------------------------

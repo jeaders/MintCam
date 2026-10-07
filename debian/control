@@ -1,0 +1,18 @@
+Source: mintcam
+Section: graphics
+Priority: optional
+Maintainer: Alex Mirici <hilliedmikerano@gmail.com>
+Build-Depends: debhelper (>= 9), python3, python3-setuptools, rsync
+Standards-Version: 4.6.2
+Homepage: https://github.com/jeaders/MintCam
+
+Package: mintcam
+Architecture: all
+Depends: ${misc:Depends}, python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
+Description: MintCam - Webcam app for Linux Mint
+ Lightweight desktop webcam application for Linux Mint.
+ Features live preview, photo capture with burst mode, video recording
+ with audio support, RTMP live streaming, QR scanner, focus assist,
+ face auto-framing, time-lapse, motion detection, background blur
+ (Bokeh), preset management, digital zoom, social sharing, and dark
+ theme UI.

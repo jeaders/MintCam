@@ -1,0 +1,26 @@
+#!/usr/bin/make -f
+# export DH_VERBOSE = 1
+
+%:
+	dh $@ --with python3
+
+override_dh_auto_build:
+	# No compilation needed
+
+override_dh_auto_install:
+	install -d $(CURDIR)/debian/mintcam/usr/bin
+	install -m 0755 packaging/mintcam-launcher $(CURDIR)/debian/mintcam/usr/bin/mintcam
+	install -d $(CURDIR)/debian/mintcam/usr/share/applications
+	install -m 0644 packaging/mintcam.desktop $(CURDIR)/debian/mintcam/usr/share/applications/mintcam.desktop
+	install -d $(CURDIR)/debian/mintcam/usr/share/metainfo
+	install -m 0644 mintcam.appdata.xml $(CURDIR)/debian/mintcam/usr/share/metainfo/mintcam.appdata.xml
+	install -d $(CURDIR)/debian/mintcam/usr/share/pixmaps
+	install -m 0644 assets/mintcam.png $(CURDIR)/debian/mintcam/usr/share/pixmaps/mintcam.png
+	install -d $(CURDIR)/debian/mintcam/usr/share/icons/hicolor/{16x16,32x32,48x48,64x64,128x128,256x256,512x512}/apps
+	for size in 16 32 48 64 128 256 512; do \
+		install -m 0644 assets/icons/mintcam-$${size}.png \
+			$(CURDIR)/debian/mintcam/usr/share/icons/hicolor/$${size}x$${size}/apps/mintcam.png; \
+	done
+	install -d $(CURDIR)/debian/mintcam/usr/share/mintcam
+	rsync -a --exclude='.venv' --exclude='__pycache__' --exclude='.git' app requirements.txt run.sh README.md \
+		$(CURDIR)/debian/mintcam/usr/share/mintcam/

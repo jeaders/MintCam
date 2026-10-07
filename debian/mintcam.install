@@ -1,0 +1,4 @@
+doc/*
+debian/*
+build-deb/*
+dist/*

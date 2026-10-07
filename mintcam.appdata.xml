@@ -58,5 +58,14 @@
   <content_rating type="oars-1.1">
     <content_attribute id="social-info">none</content_attribute>
   </content_rating>
+  <screenshots>
+    <screenshot type="featured">
+      <image>https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/jeaders/MintCam/main/assets/screenshot.png</image>
+      <caption>Live webcam preview with tools panel</caption>
+    </screenshot>
+  </screenshots>
   <update_contact>hilliedmikerano@gmail.com</update_contact>
 </component>

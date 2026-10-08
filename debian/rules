@@ -1,11 +1,14 @@
 #!/usr/bin/make -f
-# Minimal debian/rules - no debhelper dependency
+# debhelper rules for MintCam (pure Python app - no compilation needed)
 
 %:
-	echo "Building MintCam"
+	dh $@
+
+override_dh_auto_configure:
+	@echo "Nothing to configure (pure Python app)"
 
 override_dh_auto_build:
-	echo "Nothing to build"
+	@echo "Nothing to build (pure Python app)"
 
 override_dh_auto_install:
 	install -d $(CURDIR)/debian/mintcam/usr/bin

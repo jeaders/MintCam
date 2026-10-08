@@ -1,4 +1,4 @@
-mintcam (0.1.0) unstable; urgency=medium
+mintcam (0.1.0) noble; urgency=medium
 
   * Initial release.
   * Features: live preview, photo capture, video recording with audio,

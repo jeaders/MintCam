@@ -38,7 +38,7 @@
     <keyword>photo</keyword>
     <keyword>linux mint</keyword>
   </keywords>
-  <launchable type="desktop-id">mintcam.desktop</launchable>
+  <launchable type="desktop-id">org.mintcam.MintCam.desktop</launchable>
   <url type="homepage">https://github.com/jeaders/MintCam</url>
   <url type="screenshot">https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png</url>
   <provides>

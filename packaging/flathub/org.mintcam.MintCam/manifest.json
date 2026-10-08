@@ -21,7 +21,7 @@
             "buildsystem": "simple",
             "build-commands": [
                 "python3 -m ensurepip",
-                "pip3 install --no-cache-dir --target=/app/lib/python3/dist-packages numpy opencv-python-headless PySide6 pyzbar Pillow"
+                "pip3 install --no-cache-dir --target=/app/lib/python3/dist-packages opencv-python-headless numpy PySide6 pyzbar Pillow"
             ]
         },
         {

@@ -11,7 +11,8 @@
 
 ### PPA Signing Key
 - **Status**: `None` (auto-generation in progress — up to 24h after first successful build)
-- **After signing key is generated**:
+- **Checked**: 2026-10-09 13:05 — still null
+- **Monitor**: https://launchpad.net/~jeaders/+archive/ubuntu/ppa
   ```bash
   sudo add-apt-repository ppa:jeaders/ppa
   sudo apt update
@@ -23,6 +24,34 @@
 ### Status
 - **Commits**: Pushed ✓
 - **Tags**: `v0.1.0` and `v0.2.0` pushed ✓
+- **Release**: v0.2.0 created with demo video asset ✓
+- **Google site verification**: Meta tag committed ✓
+
+---
+
+## Flathub — PR #10572 (https://github.com/flathub/flathub/pull/10572)
+
+### Status: ⛔ Closed (auto-closed by submission-checker bot — awaiting re-evaluation)
+
+### Workflow
+1. Forked `flathub/flathub` → `jeaders/flathub` ✓
+2. Created branch `flathub-submit` from `new-pr` ✓
+3. Copied manifest + flathub.json + screenshots ✓
+4. Pushed to fork ✓
+5. Opened PR against `flathub:new-pr` ✓
+6. **Bot closed**: "Checklist(s) not completed or missing"
+7. **Fixed**: Updated PR description with full checklist (all `[X]` checked) ✓
+8. Posted comment to trigger re-evaluation ✓
+9. Bot re-runs hourly — waiting for next cycle
+
+### Files in PR
+| File | Purpose |
+|------|---------|
+| `io.github.jeaders.MintCam.json` | Manifest with 9 PyPI wheel URL sources (SHA256 verified) |
+| `flathub.json` | `{"only-arches": ["x86_64"]}` |
+| `screenshots/screenshot.png` | App screenshot (95KB) |
+| `screenshots/mintcam-app-1600x900.png` | Desktop screenshot (240KB) |
+| `screenshots/mintcam-banner-1600x900.png` | Banner screenshot (360KB) |
 - **Release**: Created on GitHub ✓
 - **Google site verification**: Added to `index.html` ✓
 

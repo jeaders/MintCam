@@ -45,6 +45,12 @@
   </provides>
   <icon type="stock">io.github.jeaders.MintCam</icon>
   <releases>
+    <release version="0.2.0" date="2026-10-09">
+      <description>
+        <p>Flathub submission preparation. Updates app ID to io.github.jeaders.MintCam,
+        adds LICENSE file, app icon assets, and Flatpak packaging manifest.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-07">
       <description>
         <p>Initial release with live preview, photo capture, video recording,

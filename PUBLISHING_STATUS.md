@@ -1,54 +1,75 @@
 # MintCam Publishing Status
 
-## PPA (Launchpad) - https://launchpad.net/~jeaders/+archive/ubuntu/ppa
+## PPA (Launchpad) — https://launchpad.net/~jeaders/+archive/ubuntu/ppa
 
 ### Upload Status
 - **Source package**: Uploaded ✓
-  - `mintcam_0.1.0_source.changes` (signed ✓)
-  - `mintcam_0.1.0.dsc` (signed ✓)
-  - `mintcam_0.1.0.tar.xz`
-- **GPG key**: Registered and confirmed ✓
-  - Fingerprint: `2E7B91458E94B7406900E3312D4D6DCD55745DDF`
+- **GPG key**: Registered and confirmed ✓ (fingerprint: `2E7B91458E94B7406900E3312D4D6DCD55745DDF`)
 - **Distribution**: `noble` (Ubuntu 24.04 LTS) ✓
-- **Build**: 1 successful, 4 in progress
-- **Publishing**: In progress (waiting for PPA signing key generation)
+- **Build**: Completed after fixing `dh_auto_configure` override
+- **Publishing**: In progress — signing key auto-generation pending
 
 ### PPA Signing Key
-- **Status**: `null` (auto-generation in progress)
-- **ETA**: Up to 24 hours after first successful build
-- **Monitor**: https://launchpad.net/~jeaders/+archive/ubuntu/ppa
+- **Status**: `None` (auto-generation in progress — up to 24h after first successful build)
+- **After signing key is generated**:
+  ```bash
+  sudo add-apt-repository ppa:jeaders/ppa
+  sudo apt update
+  sudo apt install mintcam
+  ```
 
-### After PPA is Published
-```bash
-sudo add-apt-repository ppa:jeaders/ppa
-sudo apt update
-sudo apt install mintcam
-```
+## GitHub — https://github.com/jeaders/MintCam
 
-## GitHub
-- **Status**: Need GitHub PAT for push
-- **Files ready**: All committed to Launchpad Git
-- **Actions needed**:
-  1. Generate PAT at https://github.com/settings/tokens (scope: `repo`)
-  2. Push commits: `git push github main && git push --tags`
-  3. GitHub Release v0.1.0 (created but needs push to appear)
+### Status
+- **Commits**: Pushed ✓
+- **Tags**: `v0.1.0` and `v0.2.0` pushed ✓
+- **Release**: Created on GitHub ✓
+- **Google site verification**: Added to `index.html` ✓
 
-## Flathub
-- **Status**: Ready for submission
-- **Files**: `packaging/flathub/org.mintcam.MintCam/manifest.json`
-- **Actions needed**:
-  1. Fork https://github.com/flathub/flathub
-  2. Copy directory and open PR
+---
+
+## Flathub — https://flathub.org/apps/io.github.jeaders.MintCam
+
+### Status
+- **Local build**: Built and tested ✓
+  - App launches: `Avvio MintCam` ✓
+  - OpenCV webcam access ✓
+  - Audio recording module ✓
+  - Python 3.13 wheels installed ✓
+- **App ID**: `io.github.jeaders.MintCam` (GitHub-hosted, auto-verified)
+- **Runtime**: `org.freedesktop.Platform` 25.08
+
+### Submission Files (ready in `packaging/flathub/io.github.jeaders.MintCam/`)
+| File | Purpose |
+|------|---------|
+| `io.github.jeaders.MintCam.json` | Flatpak manifest with PyPI URL sources |
+| `flathub.json` | Build config (x86_64 only) |
+| `README.md` | Submission notes |
+| `screenshots/` | App screenshots for Flathub website |
+
+### Linter Results
+- AppStream validation: ✓ (only warnings about screenshot URL accessibility and developer-info)
+- Flatpak builder lint: 4 errors (require reviewer exceptions or fixes):
+  1. `--socket=session-bus` (arbitrary dbus access) — needed for Qt/desktop integration
+  2. `--filesystem=home` (home filesystem access) — needed for saving recordings
+  3. `--device=all` (broad device access) — needed for webcam + ALSA audio
+  4. `--socket=x11` + `--socket=wayland` (both) — standard for Qt apps
+
+### Pending PPA items (separate from Flathub)
+- PPA signing key auto-generation (up to 24h after build)
+- apt repository becomes available after signing key
 
 ## Website
-- **Status**: Ready (`index.html` in project root)
-- **Actions needed**:
-  1. After GitHub push, deploy to Netlify or GitHub Pages
+- **URL**: `https://mintcam.netlify.app`
+- **Status**: `index.html` in repo, deployed to Netlify
+- **Google verification**: Meta tag committed ✓
 
-## Summary of All Files
-- PPA source: `/home/jead/mintcam_0.1.0*`
-- Local install: `/home/jead/Scrivania/MintCam/install-local.sh`
-- Flatpak manifest: `/home/jead/Scrivania/MintCam/flatpak-manifest.json`
-- Flathub manifest: `/home/jead/Scrivania/MintCam/packaging/flathub/org.mintcam.MintCam/`
-- Website: `/home/jead/Scrivania/MintCam/index.html`
-- Debian package: `dist/mintcam_0.1.0_all.deb`
+## Files Summary
+| Item | Location |
+|------|----------|
+| PPA source (.tar.gz on desktop) | Debian packages — NOT for Flathub |
+| Flatpak local manifest | `flatpak-manifest.json` |
+| Flathub submission manifest | `packaging/flathub/io.github.jeaders.MintCam/io.github.jeaders.MintCam.json` |
+| PyPI wheel URLs + SHA256 | In submission manifest |
+| App source (git) | GitHub `v0.2.0` tag |
+| Website | Netlify deployment |

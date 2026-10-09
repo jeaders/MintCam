@@ -89,8 +89,8 @@
                 {
                     "type": "git",
                     "url": "https://github.com/jeaders/MintCam.git",
-                    "tag": "v0.1.0",
-                    "commit": "8b03c1156b922adac2200a9e81dd3be6a52183da"
+                    "tag": "v0.2.0",
+                    "commit": "979b5a2cfd6cecd57e0cf2c0b7e7d34af3707865"
                 }
             ]
         }

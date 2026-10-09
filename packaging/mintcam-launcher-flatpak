@@ -1,0 +1,5 @@
+#!/bin/sh
+export PYTHONPATH=/app/lib/python3/dist-packages:'${PYTHONPATH}'
+export QT_QPA_PLATFORM_PLUGIN_PATH=/app/lib/python3/dist-packages/PySide6/Qt/plugins
+cd /app/mintcam
+exec python3 -m app.main

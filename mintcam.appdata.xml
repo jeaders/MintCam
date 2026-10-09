@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>org.mintcam.MintCam</id>
+  <id>io.github.jeaders.MintCam</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>MintCam</name>
   <summary>Webcam app for Linux Mint</summary>
   <description>
-    <p>MintCam is a lightweight desktop webcam application for Linux Mint.</p>
+    <p>MintCam is a lightweight desktop webcam application for Linux Mint featuring live preview, photo capture, video recording, QR scanning, background blur, motion detection, and live RTMP streaming.</p>
     <p>Features:</p>
     <ul>
       <li>Live webcam preview with real-time FPS counter</li>
@@ -38,13 +38,12 @@
     <keyword>photo</keyword>
     <keyword>linux mint</keyword>
   </keywords>
-  <launchable type="desktop-id">org.mintcam.MintCam.desktop</launchable>
+  <launchable type="desktop-id">io.github.jeaders.MintCam.desktop</launchable>
   <url type="homepage">https://github.com/jeaders/MintCam</url>
-  <url type="screenshot">https://raw.githubusercontent.com/jeaders/MintCam/main/assets/banner.png</url>
   <provides>
     <binary>mintcam</binary>
   </provides>
-  <icon type="stock">mintcam</icon>
+  <icon type="stock">io.github.jeaders.MintCam</icon>
   <releases>
     <release version="0.1.0" date="2026-10-07">
       <description>

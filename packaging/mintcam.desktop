@@ -1,9 +1,9 @@
 [Desktop Entry]
 Name=MintCam
 Comment=Webcam app for Linux Mint
-Exec=/usr/bin/mintcam
+Exec=mintcam
 Icon=mintcam
 Terminal=false
 Type=Application
 Categories=AudioVideo;Video;Recorder;
-Keywords=webcam;camera;video;recorder;
+Keywords=webcam;camera;video;recorder;photo;

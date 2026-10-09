@@ -22,6 +22,10 @@ photos/
 !assets/logo.jpg
 !assets/banner.png
 !assets/screenshot.png
+!assets/mintcam.png
+!assets/icons/
+!assets/mintcam-app-1600x900.png
+!assets/mintcam-banner-1600x900.png
 build-dir/
 .flatpak-builder/
 PRIVATE_README.md

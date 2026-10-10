@@ -19,7 +19,7 @@ Section: video
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
-Maintainer: jead <hilliedmikerano@gmail.com>
+Maintainer: jead <jeaders@users.noreply.github.com>
 Homepage: https://github.com/jeaders/MintCam
 Description: MintCam - Webcam app for Linux Mint
   Lightweight desktop webcam application for Linux Mint.

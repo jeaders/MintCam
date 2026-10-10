@@ -1,3 +1,12 @@
+mintcam (0.2.0) noble; urgency=medium
+
+  * Renamed app ID to io.github.jeaders.MintCam
+  * Added LICENSE file and Flatpak packaging
+  * Fixed recording writer release sync
+  * Updated icon assets for all sizes
+
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Thu, 09 Oct 2026 12:00:00 +0000
+
 mintcam (0.1.0) noble; urgency=medium
 
   * Initial release.
@@ -6,4 +15,4 @@ mintcam (0.1.0) noble; urgency=medium
     time-lapse, motion detection, background blur (Bokeh), preset
     manager, digital zoom, social sharing, and dark theme UI.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Wed, 07 Oct 2026 19:58:00 +0000
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Wed, 07 Oct 2026 19:58:00 +0000

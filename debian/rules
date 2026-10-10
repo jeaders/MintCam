@@ -14,7 +14,7 @@ override_dh_auto_install:
 	install -d $(CURDIR)/debian/mintcam/usr/bin
 	install -m 0755 packaging/mintcam-launcher $(CURDIR)/debian/mintcam/usr/bin/mintcam
 	install -d $(CURDIR)/debian/mintcam/usr/share/applications
-	install -m 0644 packaging/mintcam.desktop $(CURDIR)/debian/mintcam/usr/share/applications/org.mintcam.MintCam.desktop
+	install -m 0644 packaging/mintcam.desktop $(CURDIR)/debian/mintcam/usr/share/applications/mintcam.desktop
 	install -d $(CURDIR)/debian/mintcam/usr/share/metainfo
 	install -m 0644 mintcam.appdata.xml $(CURDIR)/debian/mintcam/usr/share/metainfo/mintcam.appdata.xml
 	install -d $(CURDIR)/debian/mintcam/usr/share/pixmaps

@@ -1,46 +1,32 @@
 # MintCam on Flathub
 
-**App ID:** `org.mintcam.MintCam`
+**App ID:** `io.github.jeaders.MintCam`
 **Runtime:** `org.freedesktop.Platform` 25.08
-**License:** GPL-3.0-or-later
+**License:** MIT
 
-## Publishing Steps
+## What this directory contains
 
-1. **Fork** https://github.com/flathub/flathub
-2. **Copy** this directory into your fork as `python3/mintcam.json`:
-   ```bash
-   cp -r packaging/flathub/org.mintcam.MintCam/ /path/to/flathub-fork/python3/
-   cp /path/to/flathub-fork/python3/mintcam.json
-   ```
-3. **Add** `mintcam.png` to `icons/256x256/apps/` in the Flathub repo
-4. **Upload** screenshots to a public HTTPS URL (update AppData references)
-5. **Commit** and **push** to your fork
-6. **Open a PR** to https://github.com/flathub/flathub
+- `io.github.jeaders.MintCam.json` — the Flatpak manifest
+- `flathub.json` — restricts builds to x86_64 (aarch64 not yet tested)
+- `screenshots/` — images for the submission PR
 
-## Prerequisites
-- Screenshots must be at least 1280x720, preferably 1600x900
-- AppData must reference HTTPS screenshot URLs
-- Icons must be 256x256 PNG in hicolor theme
-- Flatpak manifest uses offline pip wheels (no network during build required)
+## Build locally
 
-## Testing Locally
-
-### Build (requires flatpak + flatpak-builder)
 ```bash
-flatpak-builder --user --install --force-clean build-dir manifest.json
-flatpak run org.mintcam.MintCam
+flatpak-builder --user --install --force-clean ../build-dir io.github.jeaders.MintCam.json
+flatpak run io.github.jeaders.MintCam
 ```
 
-### Local installation (via Flathub after approval)
-```bash
-flatpak install flathub org.mintcam.MintCam
-```
+## Submission notes
 
-## Offline Build Dependencies
+The manifest pulls source from the `v0.2.0` tag on GitHub. All PyPI
+dependencies are bundled as pre-built wheels with SHA256 checksums
+(verified via the PyPI JSON API). No network access is needed at build time.
 
-All Python wheels are bundled in `../../../flatpak-wheels.tar.gz` (338MB).
-To regenerate:
-```bash
-pip download -r requirements.txt --dest flatpak-wheels/
-tar czf flatpak-wheels.tar.gz -C flatpak-wheels/ *.whl
-```
+### Permissions explained
+
+- `--device=all` — webcam + USB audio capture (needed for OpenCV + ALSA)
+- `--filesystem=home` — save photos, videos, logs to the user's home directory
+- `--socket=x11` + `--socket=wayland` — display server access (Qt needs both)
+- `--socket=session-bus` — Qt desktop integration
+- `--share=network` — RTMP streaming (optional feature, can be removed if not needed)

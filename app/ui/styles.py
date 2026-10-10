@@ -1,6 +1,7 @@
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
+# Mint green palette — inspired by Linux Mint branding
 MINT = "#3eb34a"
 MINT_LIGHT = "#5cd962"
 BG_0 = "#0f1115"

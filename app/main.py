@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.ui.main_window import MainWindow
 
+# Limit OpenCV threads to avoid audio crackling on some setups
 cv2.setNumThreads(1)
 
 

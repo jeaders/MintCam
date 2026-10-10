@@ -47,8 +47,9 @@
   <releases>
     <release version="0.2.0" date="2026-10-09">
       <description>
-        <p>Flathub submission preparation. Updates app ID to io.github.jeaders.MintCam,
-        adds LICENSE file, app icon assets, and Flatpak packaging manifest.</p>
+        <p>Second release. Renamed app ID to io.github.jeaders.MintCam for Flathub
+        submission, added LICENSE file, and created Flatpak packaging manifest.
+        Also updated icon assets and fixed the recording module.</p>
       </description>
     </release>
     <release version="0.1.0" date="2026-10-07">
@@ -72,5 +73,5 @@
       <caption>Live webcam preview with tools panel</caption>
     </screenshot>
   </screenshots>
-  <update_contact>hilliedmikerano@gmail.com</update_contact>
+  <update_contact>jeaders@users.noreply.github.com</update_contact>
 </component>

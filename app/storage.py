@@ -6,6 +6,7 @@ logger = logging.getLogger("mintcam.storage")
 
 
 class Storage:
+    # Everything goes under ~/MintCam — keep it simple
     BASE_DIR = Path.home() / "MintCam"
 
     @classmethod

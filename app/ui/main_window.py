@@ -47,6 +47,9 @@ from app.ui.styles import apply_dark_theme
 
 logger = logging.getLogger("mintcam.ui")
 
+# FIXME: face detection sometimes crashes on frame resize — wrap in try/except
+# TODO: extract filter logic into separate module for cleaner tests
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:

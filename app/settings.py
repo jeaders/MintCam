@@ -5,6 +5,7 @@ from typing import Any
 
 logger = logging.getLogger("mintcam.settings")
 
+# These defaults are picked at runtime if user settings.json is missing or corrupt
 DEFAULTS: dict[str, Any] = {
     "camera_index": 0,
     "resolution": "640x480",

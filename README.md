@@ -178,6 +178,14 @@ The package will be created in `dist/`.
 
 ## Changelog
 
+### 0.2.0
+
+- Renamed app ID to `io.github.jeaders.MintCam` for Flathub
+- Added LICENSE file and Flatpak packaging
+- Updated icon assets for all sizes
+- Fixed recording module (writer release sync in stop/__del)
+- Added PPA for Ubuntu Noble
+
 ### 0.1.0
 
 - Initial public release
@@ -195,12 +203,13 @@ The package will be created in `dist/`.
 
 ## License
 
-Prototype without a defined license. See [PRIVATE_README.md](PRIVATE_README.md) for internal documentation.
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Copyright
 
-© 2026 [Alex Mirici](https://alexmirici.netlify.app) - Web Developer
+© 2026 Alex Mirici — Web Developer
+<a href="https://alexmirici.netlify.app">https://alexmirici.netlify.app</a>
 
 ## Support
 
-Report issues at [https://github.com/jeaders/MintCam/issues](https://github.com/jeaders/MintCam/issues)
+Report issues at <a href="https://github.com/jeaders/MintCam/issues">https://github.com/jeaders/MintCam/issues</a>

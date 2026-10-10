@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from PySide6.QtCore import QObject, Signal, QThread
 
+# NOTE: tested with Logitech C920 and C270 on Mint 21. Using V4L2 backend
 logger = logging.getLogger("mintcam.camera")
 
 RESOLUTIONS = {

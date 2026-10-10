@@ -9,6 +9,8 @@ import numpy as np
 
 logger = logging.getLogger("mintcam.recorder")
 
+# TODO: handle case where ffmpeg is missing but audio=True (show error dialog?)
+
 
 class Recorder:
     def __init__(self) -> None:

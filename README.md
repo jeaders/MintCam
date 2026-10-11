@@ -45,16 +45,16 @@
 One command; adds the repository, imports the signing key and installs the app:
 
 ```bash
-curl -fsSL https://mintcam.netlify.app/apt/install.sh | sudo bash
+curl -fsSL https://jeaders.github.io/MintCam/apt/install.sh | sudo bash
 ```
 
 Or manually:
 
 ```bash
 sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://mintcam.netlify.app/apt/mintcam-archive-key.asc \
+curl -fsSL https://jeaders.github.io/MintCam/apt/mintcam-archive-key.asc \
   | sudo gpg --dearmor --yes -o /etc/apt/keyrings/mintcam.gpg
-echo "deb [signed-by=/etc/apt/keyrings/mintcam.gpg] https://mintcam.netlify.app/apt stable main" \
+echo "deb [signed-by=/etc/apt/keyrings/mintcam.gpg] https://jeaders.github.io/MintCam/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/mintcam.list
 sudo apt update
 sudo apt install mintcam

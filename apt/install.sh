@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-command installer for the MintCam APT repository.
-# Usage: curl -fsSL https://mintcam.netlify.app/apt/install.sh | sudo bash
+# Usage: curl -fsSL https://jeaders.github.io/MintCam/apt/install.sh | sudo bash
 set -euo pipefail
 
-REPO_URL="https://mintcam.netlify.app/apt"
+REPO_URL="https://jeaders.github.io/MintCam/apt"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Run with sudo:  curl -fsSL $REPO_URL/install.sh | sudo bash" >&2

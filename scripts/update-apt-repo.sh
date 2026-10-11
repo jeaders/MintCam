@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate the APT repository served at https://mintcam.netlify.app/apt
+# Regenerate the APT repository served at https://jeaders.github.io/MintCam/apt
 # Usage: ./scripts/update-apt-repo.sh [path-to-deb]
 # Run ./build-deb.sh first, or pass a .deb explicitly.
 set -euo pipefail

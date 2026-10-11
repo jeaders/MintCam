@@ -4,7 +4,7 @@ Send this to **ubuntu-motu@lists.ubuntu.com** (subscribe first, the list only
 accepts members) after the PPA build succeeds, and only after you ran `lintian`
 on the package and fixed or understood everything it reports.
 
-Subject: `[Sponsorship request] mintcam 0.2.0 (universe)`
+Subject: `[Sponsorship request] mintcam 0.2.1 (universe)`
 
 ---
 
@@ -57,10 +57,10 @@ Alex Mirici
 
 1. `sudo apt install dput lintian` (dput uploads, lintian is what reviewers run)
 2. Upload the package so the build link above is valid:
-   `dput ppa:jeaders/ppa /tmp/mintcam-ppa-build/mintcam_0.2.0_source.changes`
+   `dput ppa:jeaders/ppa /tmp/mintcam-ppa-build/mintcam_0.2.1_source.changes`
 3. Wait for the PPA build to reach "Successfully built" and the .deb to be
    published, otherwise a reviewer cannot install what you are asking about
-4. `lintian -i /tmp/mintcam-ppa-build/mintcam_0.2.0_source.changes` and fix what
+4. `lintian -i /tmp/mintcam-ppa-build/mintcam_0.2.1_source.changes` and fix what
    you can. The tags a reviewer will definitely look at are the ones about
    debian/copyright, the appdata file and missing debian/watch
 5. Subscribe to ubuntu-motu and send the mail (keep the same tone: short,

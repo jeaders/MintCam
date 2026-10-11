@@ -22,6 +22,7 @@ streaming. It is MIT licensed and developed on GitHub:
 This is my first Debian package, so I fully expect some back and forth. The
 package builds and is signed here (source and built debs):
 
+    https://launchpad.net/~jeaders/+archive/ubuntu/ppa/+build/33834374
     https://launchpad.net/~jeaders/+archive/ubuntu/ppa/+packages
 
 Packaging is native, arch: all, debhelper-compat (= 13), and the appdata

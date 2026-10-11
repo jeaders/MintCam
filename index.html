@@ -521,16 +521,28 @@
   <section id="install">
     <div class="container">
       <div class="section-header">
-        <h2>Install in 2 minutes</h2>
-        <p>Clone, virtualenv, and go. Or install as a desktop application.</p>
+        <h2>Install in one command</h2>
+        <p>Add the repository, then MintCam appears in the Software Manager and updates arrive with Update Manager.</p>
       </div>
       <div class="install-box">
         <div class="install-tabs">
-          <button class="install-tab active" data-tab="quick">Quick start</button>
+          <button class="install-tab active" data-tab="repo">Repository</button>
+          <button class="install-tab" data-tab="quick">Quick start</button>
           <button class="install-tab" data-tab="desktop">Desktop app</button>
           <button class="install-tab" data-tab="deb">.deb package</button>
         </div>
-        <div class="code-block" id="code-quick">
+        <div class="code-block" id="code-repo">
+<span class="comment"># One command: adds the GPG-signed repository and installs MintCam</span>
+<span class="cmd">curl -fsSL https://jeaders.github.io/MintCam/apt/install.sh | sudo bash</span>
+
+<span class="comment"># Then search "MintCam" in the Software Manager, or run:</span>
+<span class="cmd">mintcam</span>
+
+<span class="comment"># Uninstall</span>
+<span class="cmd">sudo apt remove</span> mintcam
+<span class="cmd">sudo rm</span> /etc/apt/sources.list.d/mintcam.list
+        </div>
+        <div class="code-block" id="code-quick" style="display:none">
 <span class="comment"># System dependencies</span>
 <span class="cmd">sudo apt update</span>
 <span class="cmd">sudo apt install</span> python3 python3-venv python3-pip v4l-utils ffmpeg libxcb-cursor0
@@ -561,13 +573,10 @@
         </div>
         <div class="code-block" id="code-deb" style="display:none">
 <span class="comment"># Download the .deb from the latest release</span>
-<span class="cmd">wget</span> https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.1.0_all.deb
+<span class="cmd">wget</span> https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.2.0_all.deb
 
-<span class="comment"># Install</span>
-<span class="cmd">sudo dpkg -i</span> mintcam_0.1.0_all.deb
-
-<span class="comment"># If dependencies are missing</span>
-<span class="cmd">sudo apt install -f</span>
+<span class="comment"># Install (apt resolves the dependencies automatically)</span>
+<span class="cmd">sudo apt install</span> ./mintcam_0.2.0_all.deb
 
 <span class="comment"># Run from menu or terminal</span>
 <span class="cmd">mintcam</span>
@@ -588,8 +597,16 @@
       <div class="download-grid">
         <div class="download-card">
           <div class="icon">📦</div>
+          <h3>Repository</h3>
+          <p>Version 0.2.0 — one command, then MintCam is in the Software Manager with automatic updates.</p>
+          <a href="https://jeaders.github.io/MintCam/apt/" class="btn btn-primary" target="_blank" rel="noopener">
+            Setup repository
+          </a>
+        </div>
+        <div class="download-card">
+          <div class="icon">📦</div>
           <h3>.deb Package</h3>
-          <p>Version 0.1.0 — Install via dpkg, integrates with Linux Mint menu.</p>
+          <p>Version 0.2.0 — manual download, install via apt, integrates with the Linux Mint menu.</p>
           <a href="https://github.com/jeaders/MintCam/releases/latest" class="btn btn-primary" target="_blank" rel="noopener">
             Download .deb
           </a>
@@ -610,7 +627,7 @@
     <div class="container">
       <div class="section-header">
         <h2>Future roadmap</h2>
-        <p>The prototype is already usable. Here's what's coming in the next versions.</p>
+        <p>MintCam is already usable day to day. Here is what is coming in the next versions.</p>
       </div>
       <div class="roadmap">
         <div class="roadmap-item">

@@ -32,3 +32,5 @@ PRIVATE_README.md
 flatpak-wheels/
 flatpak-wheels.tar.gz
 PUBLISHING_STATUS.md
+
+Docs/DEBIAN-SPONSORSHIP.md

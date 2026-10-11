@@ -11,6 +11,8 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The version is pinned while the RFS (bug 1150664) is under review:
+# the sponsor reviews exactly this version, so it must not drift.
 VERSION="0.2.1"
 REVISION="1"
 DEB_VERSION="${VERSION}-${REVISION}"
@@ -34,6 +36,7 @@ rsync -a \
   --exclude='flatpak-wheels.tar.gz' \
   --exclude='PUBLISHING_STATUS.md' \
   --exclude='SPONSORSHIP_REQUEST.md' \
+  --exclude='Docs/' \
   --exclude='index.html' \
   --exclude='logs/' \
   --exclude='*.mp4' \

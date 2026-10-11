@@ -1,3 +1,10 @@
+mintcam (0.2.2) noble; urgency=medium
+
+  * Do not ship local working notes in the source package: Docs/ and
+    SPONSORSHIP_REQUEST.md are now excluded by scripts/build-ppa.sh.
+
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 00:55:00 +0200
+
 mintcam (0.2.1) noble; urgency=medium
 
   * Packaging fixes after the first lintian run:

@@ -57,7 +57,7 @@ mintcam (${DEB_VERSION}) UNRELEASED; urgency=medium
       on first start; system dependencies are declared in Depends
     - the reasoning is documented in debian/README.source
 
- -- Alex Mirici <jeaders@users.noreply.github.com>  Sun, 11 Oct 2026 20:00:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Sun, 11 Oct 2026 20:00:00 +0200
 EOF
 
 # Non-native build: Debian wants an upstream tarball plus a Debian tarball,

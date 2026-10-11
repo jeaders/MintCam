@@ -9,7 +9,7 @@ mintcam (0.2.1) noble; urgency=medium
       mismatch warning
     - Standards-Version 4.6.2, the version lintian in noble knows
 
- -- Alex Mirici <jeaders@users.noreply.github.com>  Sun, 11 Oct 2026 13:30:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Sun, 11 Oct 2026 13:30:00 +0200
 
 mintcam (0.2.0) noble; urgency=medium
 
@@ -18,7 +18,7 @@ mintcam (0.2.0) noble; urgency=medium
   * Fixed recording writer release sync
   * Updated icon assets for all sizes
 
- -- Alex Mirici <jeaders@users.noreply.github.com>  Thu, 09 Oct 2026 12:00:00 +0000
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Thu, 09 Oct 2026 12:00:00 +0000
 
 mintcam (0.1.0) noble; urgency=medium
 
@@ -28,4 +28,4 @@ mintcam (0.1.0) noble; urgency=medium
     time-lapse, motion detection, background blur (Bokeh), preset
     manager, digital zoom, social sharing, and dark theme UI.
 
- -- Alex Mirici <jeaders@users.noreply.github.com>  Wed, 07 Oct 2026 19:58:00 +0000
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Wed, 07 Oct 2026 19:58:00 +0000

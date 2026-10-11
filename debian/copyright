@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: MintCam
-Upstream-Contact: Alex Mirici <jeaders@users.noreply.github.com>
+Upstream-Contact: Alex Mirici <hilliedmikerano@gmail.com>
 Source: https://github.com/jeaders/MintCam
 
 Files: *
-Copyright: 2026 Alex Mirici <jeaders@users.noreply.github.com>
+Copyright: 2026 Alex Mirici <hilliedmikerano@gmail.com>
 License: MIT
  MIT Licensetext
  .
@@ -27,7 +27,7 @@ License: MIT
 
 
 Files: mintcam.appdata.xml
-Copyright: 2026 Alex Mirici <jeaders@users.noreply.github.com>
+Copyright: 2026 Alex Mirici <hilliedmikerano@gmail.com>
 License: CC0-1.0
  Creative Commons Legal Code
  .

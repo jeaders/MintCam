@@ -22,7 +22,7 @@ Section: video
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
-Maintainer: Alex Mirici <jeaders@users.noreply.github.com>
+Maintainer: Alex Mirici <hilliedmikerano@gmail.com>
 Homepage: https://github.com/jeaders/MintCam
 Description: Webcam application for photo capture and video recording
  Live preview, photo capture and video recording with audio, plus QR

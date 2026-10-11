@@ -4,10 +4,10 @@ Architecture: all
 Maintainer: Alex Mirici <jeaders@users.noreply.github.com>
 Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
 Filename: pool/main/m/mintcam/mintcam_0.2.0_all.deb
-Size: 508930
-MD5sum: 7d5f91d0473f891ef6630bca792b6de5
-SHA1: ef1a78f5054c1162e82f8e6d267c5939c8ccac9b
-SHA256: 08827be1169ae6e0e08d2f285dd17b60fde96623f688b6b4905a3586109b6c98
+Size: 509416
+MD5sum: 9dc1a19a42deb86a7326426dbbda4645
+SHA1: cc8243705725aad882a5fca5c9d5b4f92f7d324e
+SHA256: 82b718d993b31ee1f39b1cf91330b6f834996d10ab551377aac10c0b55b300f3
 Section: video
 Priority: optional
 Homepage: https://github.com/jeaders/MintCam

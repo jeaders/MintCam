@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.jeaders.MintCam</id>
+  <id>mintcam</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>MintCam</name>
-  <summary>Webcam app for Linux Mint</summary>
+  <summary>Webcam application</summary>
+  <developer_name>Alex Mirici</developer_name>
   <description>
     <p>MintCam is a lightweight desktop webcam application for Linux Mint featuring live preview, photo capture, video recording, QR scanning, background blur, motion detection, and live RTMP streaming.</p>
     <p>Features:</p>
@@ -38,26 +39,24 @@
     <keyword>photo</keyword>
     <keyword>linux mint</keyword>
   </keywords>
-  <launchable type="desktop-id">io.github.jeaders.MintCam.desktop</launchable>
+  <launchable type="desktop-id">mintcam.desktop</launchable>
   <url type="homepage">https://github.com/jeaders/MintCam</url>
   <provides>
     <binary>mintcam</binary>
   </provides>
-  <icon type="stock">io.github.jeaders.MintCam</icon>
+  <icon type="stock">mintcam</icon>
   <releases>
     <release version="0.2.0" date="2026-10-09">
       <description>
-        <p>Second release. Renamed app ID to io.github.jeaders.MintCam for Flathub
-        submission, added LICENSE file, and created Flatpak packaging manifest.
-        Also updated icon assets and fixed the recording module.</p>
+        <p>Adds the MIT license file, refreshed icon assets and fixes a bug where
+        the recording writer was not released correctly.</p>
       </description>
     </release>
     <release version="0.1.0" date="2026-10-07">
       <description>
-        <p>Initial release with live preview, photo capture, video recording,
-        QR scanner, focus assist, face framing, and time-lapse features.
-        Adds live RTMP streaming, audio recording, background blur (Bokeh),
-        motion detection, and social sharing integration.</p>
+        <p>First release: live preview, photo capture, video recording with audio,
+        QR scanner, focus assist, face framing, time-lapse, background blur,
+        motion detection and RTMP streaming.</p>
       </description>
     </release>
   </releases>

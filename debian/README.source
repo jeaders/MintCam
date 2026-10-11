@@ -1,0 +1,20 @@
+How MintCam is installed from this package
+==========================================
+
+The app is plain Python and uses PySide6, opencv-python, numpy, pyzbar and
+Pillow. None of the Python bindings it needs are packaged in Ubuntu the way the
+app uses them (PySide6 in particular is split into many small packages), so
+instead of shipping a large vendored tree the package installs the app to
+/usr/share/mintcam and the /usr/bin/mintcam wrapper creates a per-user virtual
+environment in ~/.local/share/mintcam/.venv on first start, installing the
+Python requirements from the requirements.txt shipped in the package.
+
+Why this way: it keeps the binary package small (about half a megabyte), works
+on every series without rebuilding wheels per Python version, and the
+virtualenv is per user so nothing runs as root. The trade-off is that the first
+run needs network access and takes a minute or two.
+
+The system dependencies that are actually needed at runtime are declared in
+the Depends field: v4l-utils (webcam devices), ffmpeg (audio capture), and
+python3-venv/python3-pip for the virtualenv. Everything else comes from the
+shipped requirements.txt.

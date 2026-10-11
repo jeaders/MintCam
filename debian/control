@@ -10,10 +10,11 @@ Rules-Requires-Root: no
 Package: mintcam
 Architecture: all
 Depends: ${misc:Depends}, python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
-Description: MintCam - Webcam app for Linux Mint
- Lightweight desktop webcam application for Linux Mint.
- Features live preview, photo capture with burst mode, video recording
- with audio support, RTMP live streaming, QR scanner, focus assist,
- face auto-framing, time-lapse, motion detection, background blur
- (Bokeh), preset management, digital zoom, social sharing, and dark
- theme UI.
+Description: webcam application for photo capture and recording
+ MintCam turns a webcam into a live preview, photo capture and video
+ recording tool. It also handles QR scanning, focus assist, face auto
+ framing, time-lapse, motion detection, background blur and RTMP
+ streaming.
+ .
+ The Python dependencies are installed on first start into a per user
+ virtualenv; see README.source for why this is done that way.

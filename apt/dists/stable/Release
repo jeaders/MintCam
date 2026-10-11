@@ -1,0 +1,23 @@
+Architectures: all
+Codename: stable
+Components: main
+Date: Sun, 11 Oct 2026 11:07:18 +0000
+Description: MintCam package repository
+Origin: MintCam
+Suite: stable
+MD5Sum:
+ c430d5afde7361fd7eb7b8c16c3e1b9b              161 Release
+ 09042aa6219c4ebbe609c35ae55531e0              899 main/binary-all/Packages
+ 6e28697927d06a4e0a1de210a376cdbc              626 main/binary-all/Packages.gz
+SHA1:
+ 5d1ef13ac6d278ad7ef24faf6758a6fa1b5280ef              161 Release
+ 632bea49c7c1889f9fdfe4aa9332422c3dddeb34              899 main/binary-all/Packages
+ e68c57aaf78783fcfa1250aff60f9ba61454cae0              626 main/binary-all/Packages.gz
+SHA256:
+ c78e282e1e785cd81b9c6833d2cc361ce50cd504f13e1c83400d8713f2551f53              161 Release
+ 002e60ef56f703cca0d5df404b5735e73115e28c9dab20a79504542afccc1c87              899 main/binary-all/Packages
+ c30495da4265d9ab60af7bcd0bbd1d6da7c6308f65a0aa871c027715d41e3124              626 main/binary-all/Packages.gz
+SHA512:
+ bf8352bd3c3aba3214a88394c51d9332fec160e220ad6d0d430940b7167c918bf8ec0fbff92ee4ab0de2f2a484c55887f67f16edba159973f822f4fd231b9144              161 Release
+ 80fbb271908cf5858700c1d84ef7cae795133927d23546f352fa8d6320a1ef72661a2934ecfd174e295b2f076ef1971458471da1574a9278a46a48879137dacf              899 main/binary-all/Packages
+ 1c88f7a3248f3ebe2b1d9d225dbbc1771183a45924a3684035e58f271cbe74ed4fad3df43913ee9cfdd866fbbabee639a74d69ff3746d66abc2edcf8b13c5892              626 main/binary-all/Packages.gz

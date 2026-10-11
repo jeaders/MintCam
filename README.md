@@ -40,13 +40,43 @@
 
 ## Installation
 
-### From .deb Package
+### Recommended: APT repository (also visible in Software Manager)
 
-Download the latest `.deb` from [Releases](https://github.com/jeaders/MintCam/releases) and install:
+One command; adds the repository, imports the signing key and installs the app:
 
 ```bash
-sudo dpkg -i dist/mintcam_0.1.0_all.deb
+curl -fsSL https://mintcam.netlify.app/apt/install.sh | sudo bash
 ```
+
+Or manually:
+
+```bash
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://mintcam.netlify.app/apt/mintcam-archive-key.asc \
+  | sudo gpg --dearmor --yes -o /etc/apt/keyrings/mintcam.gpg
+echo "deb [signed-by=/etc/apt/keyrings/mintcam.gpg] https://mintcam.netlify.app/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/mintcam.list
+sudo apt update
+sudo apt install mintcam
+```
+
+Adding a repository in **Software Sources** (or with the snippet above) makes
+**MintCam** appear in the **Software Manager** search, and updates arrive
+through **Update Manager** like any other package.
+
+### From .deb Package
+
+Download the latest `.deb` from [Releases](https://github.com/jeaders/MintCam/releases)
+and install:
+
+```bash
+# Direct download of the current release
+wget https://github.com/jeaders/MintCam/releases/download/v0.2.0/mintcam_0.2.0_all.deb
+sudo apt install ./mintcam_0.2.0_all.deb
+```
+
+`apt install ./...` resolves the dependencies (`v4l-utils`, `ffmpeg`,
+`libxcb-cursor0`, `python3-venv`) automatically; `dpkg -i` alone does not.
 
 ### From Source
 

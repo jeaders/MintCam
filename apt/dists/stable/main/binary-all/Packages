@@ -4,18 +4,18 @@ Architecture: all
 Maintainer: Alex Mirici <jeaders@users.noreply.github.com>
 Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
 Filename: pool/main/m/mintcam/mintcam_0.2.0_all.deb
-Size: 509416
-MD5sum: 9dc1a19a42deb86a7326426dbbda4645
-SHA1: cc8243705725aad882a5fca5c9d5b4f92f7d324e
-SHA256: 82b718d993b31ee1f39b1cf91330b6f834996d10ab551377aac10c0b55b300f3
+Size: 514082
+MD5sum: 1fd9b7d65bd783e73e1ef49465e8b8fa
+SHA1: 9862c963c15fd44728e82f6b2846fcf326bc24d7
+SHA256: 04dc7a7e55b744a0e64f13d402cdbec84d51e3e920b8fdaae9b0ba4d521d7172
 Section: video
 Priority: optional
 Homepage: https://github.com/jeaders/MintCam
-Description: MintCam - Webcam app for Linux Mint
-  Lightweight desktop webcam application for Linux Mint.
-  Features live preview, photo capture with burst mode, video recording
-  with audio support, RTMP live streaming, QR scanner, focus assist,
-  face auto-framing, time-lapse, motion detection, background blur
-  (Bokeh), preset management, digital zoom, social sharing, and dark
-  theme UI.
+Description: Webcam application for photo capture and video recording
+ Live preview, photo capture and video recording with audio, plus QR
+ scanning, focus assist, face auto framing, time-lapse, motion detection,
+ background blur and RTMP streaming.
+ .
+ On first start the Python dependencies are installed into a per-user
+ virtualenv.
 

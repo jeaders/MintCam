@@ -4,39 +4,39 @@ Hash: SHA512
 Architectures: all
 Codename: stable
 Components: main
-Date: Sun, 11 Oct 2026 12:58:24 +0000
+Date: Sun, 11 Oct 2026 13:56:44 +0000
 Description: MintCam package repository
 Origin: MintCam
 Suite: stable
 MD5Sum:
- 7459af87450e9907965901ef98117a7d              161 Release
- 1cd9eca03954989957fab7dfba99863d              899 main/binary-all/Packages
- 2e62b6836e8a3ab49b396ef0480dace1              625 main/binary-all/Packages.gz
+ 63ae5e158b976cf6f5b5f49bbaf1e498              161 Release
+ 3b29e138e61ee747ca049914ef41ac94              840 main/binary-all/Packages
+ c2e4434395bcec87eb256919a5a6fa37              579 main/binary-all/Packages.gz
 SHA1:
- e536b5a5e15a32d98f9ea9e76d41272abec69994              161 Release
- 04f2824816dc7e11f54a84d20888c729f27c5cac              899 main/binary-all/Packages
- 873e569b1df406ec835479322a76cb7b82f56fca              625 main/binary-all/Packages.gz
+ 1235c177d812ae4e72336c3e9a6de3ce35bc89bf              161 Release
+ 4ff759f355cb9de2ded77f2a56b48ecdc74157f6              840 main/binary-all/Packages
+ 513da45cd10c1cb4045a016420a0923b96406b27              579 main/binary-all/Packages.gz
 SHA256:
- af983a608e7f92333c78b71bc99ba3234bb7ae51991cd87beeada7d6eb3c3d31              161 Release
- d48f4d2a0eff6942bde36f054b68d8fd758cd38b75c05434043a700d64d3bcdd              899 main/binary-all/Packages
- b29e8f838de392b628eeb10b4a29861f8f998c321ea61c12b878175c1a94aa71              625 main/binary-all/Packages.gz
+ e06cceb725943aaefdeda0f8b298f92e995d9257815764e98aceda6691e4f4f8              161 Release
+ f2abe88401e0086313506645da5762e7fdf517d812fbe970581db667a361358d              840 main/binary-all/Packages
+ 122b25b520c20dda9e58f9b9ae1a3956fd347ca0d8eee3aca3852f9cb8a7ee0e              579 main/binary-all/Packages.gz
 SHA512:
- 8822c253949da35ac333c5ed5789b24f02d5c5c231cf6a9f0aedff3f096eb2ccd32ed859ca2729d4179590fee3bc37eb2dac765d4d9e34194b7cfb41b5de8bd0              161 Release
- 838532c900b3653cc3fac0893ea52a6e0d92866652a1ddc4e460933cf5df0ef191acff72e68701c8f3c99d2eb8f1b8cd968693cc44a4bf346e92ad4aec5f316e              899 main/binary-all/Packages
- c0826c716316984876fab1347216ece602688ff0dfd5ede96c1c63a95fa4a3fb6fcb0e3073795faea5c9198a1f36deec9168931b6a7151a9b0f094fd891866ce              625 main/binary-all/Packages.gz
+ d711a81c3ed759ae9c09703fa3733b333667f3b6ba3b2e90631b7dd10c788a4b735b7ef04276eff09faf3b4c8546bc207465cf2f27998a959c13f8b6d17ff021              161 Release
+ 81e1f91402f5847ea2ba757fce97c7843c76c8f55d59a706b9d1910d14a9c9adf9b0cb701a4bd2d62319e576bbea06408239d8994ddb4ec8a98894b87ceaec51              840 main/binary-all/Packages
+ 274975431db65c92f6584eba7e79b73526b097ec94e24e1460ab7c42f61571e6e2dd955b3c47cac73d4ded942923a91b965eb247818adcfb97e9699ccd1f0d5d              579 main/binary-all/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEQZ6JjVRxPSNukj5c06ioBOsHv/kFAmrLh/AACgkQ06ioBOsH
-v/kTThAAg/rFs0XJ8DUGpebylPqskC2y6AEhAvnQ0s/gI/acz1NFHJeg/EKh+eBP
-FLdGmxqykCLE4+kkx4FfRVvrhIoRKkiP2orSONX6IksKpUomI8RJvCWBO0QdkvAb
-wXnpcEHK9HJpPVEswzRVnTo9TN3oPFAZDu2rJ9p8CGxz0UoGlG+zqviwNGxwSjRU
-kRl2dVuTVubYk8EgsosHfffJSbFM7pvwngX0U2XUyv6aXxAhTxxNlE4PILmF2Ojo
-UGKZPxoS/hQ1SJhg0cj3fPKAiUBJ6ZHz3jFiQKzY4BmiFI6WMy6Peq1FYD0s4clU
-z4ulXdw8JMyj52uobPA3ZN6u59Pg0IrawWJc1mrBVoXUCQ2OUuKJVCaAcNTV5JoD
-mq1uf4vxZtEj8VzmdnTQ5Yr8olRO3v0JVY/dLfh5+pc5zXHQfgoidIuzAtUXf3Nc
-kxRZDq7Dk3CdwjnSr82rFiEM/eBtUPFc6wJpQnpN5bDq2BlMU+yMu603vZKbc9bL
-ImQfcoxzTJ0HHsYAlI87v7+WVa2x0Y46A30FiEdsnQX+IH44ggwyuW/lWTpGywjo
-+pT46170g9V0ugaOduoAQhGGbjx7HNbeizYitfSPUdPm6G16zZhxKbWtyGlxGhZY
-CqmS5cetePu6I+c5lF4Pz7QfpS4C2Fd7owtW2i/yBOgfjhpTcYE=
-=s2aq
+iQIzBAEBCgAdFiEEQZ6JjVRxPSNukj5c06ioBOsHv/kFAmrLlZ0ACgkQ06ioBOsH
+v/lr3g/+Iubq2oddIrTqFxI+JzVyvGhnVitgtYVCjqzBNT5EXZX0MpuIABwJQgIg
+b7osxE5YSLnUMNXl8o9KpXMiHoUGkhty3IoYxwySwY7jKEpxPGK9IAf/lFqYHGqE
+340eWfvigBJS2G6NduTyKwfyV1OT+XvAHZDY+Ns9L4SCHjzhDkkup+thz8HjKudn
+4SaxegD/m7Rqrjyx+4AedBsZoqOZv/viwYageTdSJA9NqK1ncKvG7Ic+pEmBi3+r
+BdF8utPTbz4QYSewiphLPkpKQtxQMLjoerfXQTgKaqsaUmAslWOn1MQLR4jqkzxQ
+1Di5xnyT5mcRr1OFc1shM8nyRqCEhxRN0qTvHXmscCTBUKhj5UcGSMaiZND4yYnE
+CsKO5B1H3NuwTuOcegkIpa13ZBH5wv0AMD46HbVpUBsnWe3YnqiBND/BX8XY+Qqq
+d976+5jy2ORls+iiyIGvE7aqwy2ay9b08bGQlngujzAG/PJ9lumd95BKaFZPIlry
+/+QhWHy7RCNfHoO6GNzml5Oeahxs16oDkyEkZr98GlLnwaPHumwrBpzRMCKNIU3J
+EBVcTtLeAY3z0PrHrD3ijVxgxWBPc7w15WzDGfFe2yrE6OCKuL1ZLx4UAw0BH9/P
+SBPHpPptZrWHw6/MckAxI577JKQOyGDDUTqnCRCmhBdufEjeAG8=
+=/cM6
 -----END PGP SIGNATURE-----

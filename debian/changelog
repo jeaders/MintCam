@@ -1,3 +1,16 @@
+mintcam (0.2.1) noble; urgency=medium
+
+  * Packaging fixes after the first lintian run:
+    - do not ship the website source (index.html) in the Debian source
+      package, it is not needed to build the package and lintian flagged it
+      with source-is-missing
+    - debian/copyright: separate stanza for mintcam.appdata.xml carrying its
+      CC0-1.0 metadata license, which fixes the appstream metadata license
+      mismatch warning
+    - Standards-Version 4.6.2, the version lintian in noble knows
+
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Sun, 11 Oct 2026 13:30:00 +0200
+
 mintcam (0.2.0) noble; urgency=medium
 
   * Renamed app ID to io.github.jeaders.MintCam

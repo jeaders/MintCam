@@ -37,6 +37,7 @@ rsync -a \
   --exclude='flatpak-wheels/' \
   --exclude='flatpak-wheels.tar.gz' \
   --exclude='PUBLISHING_STATUS.md' \
+  --exclude='index.html' \
   --exclude='logs/' \
   --exclude='photos/' \
   --exclude='recordings/' \

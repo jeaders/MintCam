@@ -8,10 +8,13 @@ BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
 
 rm -rf "$BUILD_DIR" "$DIST_DIR"
-mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/pixmaps,usr/share/mintcam,usr/share/mintcam/assets,usr/share/icons/hicolor/16x16/apps,usr/share/icons/hicolor/32x32/apps,usr/share/icons/hicolor/48x48/apps,usr/share/icons/hicolor/64x64/apps,usr/share/icons/hicolor/128x128/apps,usr/share/icons/hicolor/256x256/apps,usr/share/icons/hicolor/512x512/apps}
+mkdir -p "$BUILD_DIR"/{DEBIAN,usr/bin,usr/share/applications,usr/share/metainfo,usr/share/pixmaps,usr/share/doc/mintcam,usr/share/man/man1,usr/share/mintcam,usr/share/mintcam/assets}
+for size in 16 32 48 64 128 256 512; do
+  mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/${size}x${size}/apps"
+done
 mkdir -p "$DIST_DIR"
 
-# Control
+# Control (single leading space on the extended description lines: Debian Policy)
 cat > "$BUILD_DIR/DEBIAN/control" <<EOF
 Package: mintcam
 Version: $VERSION
@@ -21,17 +24,20 @@ Architecture: all
 Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
 Maintainer: Alex Mirici <jeaders@users.noreply.github.com>
 Homepage: https://github.com/jeaders/MintCam
-Description: MintCam - Webcam app for Linux Mint
-  Lightweight desktop webcam application for Linux Mint.
-  Features live preview, photo capture with burst mode, video recording
-  with audio support, RTMP live streaming, QR scanner, focus assist,
-  face auto-framing, time-lapse, motion detection, background blur
-  (Bokeh), preset management, digital zoom, social sharing, and dark
-  theme UI.
+Description: Webcam application for photo capture and video recording
+ Live preview, photo capture and video recording with audio, plus QR
+ scanning, focus assist, face auto framing, time-lapse, motion detection,
+ background blur and RTMP streaming.
+ .
+ On first start the Python dependencies are installed into a per-user
+ virtualenv.
 EOF
 
 # Launcher
 install -m 0755 "${SCRIPT_DIR}/packaging/mintcam-launcher" "$BUILD_DIR/usr/bin/mintcam"
+
+# Manual page
+install -m 0644 "${SCRIPT_DIR}/packaging/mintcam.1" "$BUILD_DIR/usr/share/man/man1/mintcam.1"
 
 # Desktop file
 install -m 0644 "${SCRIPT_DIR}/packaging/mintcam.desktop" "$BUILD_DIR/usr/share/applications/mintcam.desktop"
@@ -51,7 +57,7 @@ install -m 0644 "${SCRIPT_DIR}/assets/icons/mintcam-256.png" "$BUILD_DIR/usr/sha
 install -m 0644 "${SCRIPT_DIR}/assets/icons/mintcam-512.png" "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintcam.png"
 
 # App files
-rsync -av \
+rsync -a \
   --exclude='.venv' \
   --exclude='__pycache__' \
   --exclude='.git' \
@@ -64,13 +70,22 @@ rsync -av \
   "${SCRIPT_DIR}/app" "${SCRIPT_DIR}/requirements.txt" "${SCRIPT_DIR}/run.sh" "${SCRIPT_DIR}/README.md" \
   "$BUILD_DIR/usr/share/mintcam/"
 
-# Permissions
-chmod 0644 "$BUILD_DIR/usr/share/applications/mintcam.desktop"
-chmod 0644 "$BUILD_DIR/usr/share/metainfo/mintcam.appdata.xml"
-chmod 0644 "$BUILD_DIR/usr/share/pixmaps/mintcam.png"
-chmod 0644 "$BUILD_DIR/usr/share/icons/hicolor/"*/apps/mintcam.png
+# /usr/share/doc: copyright must be plain text (Policy 12.5), changelog compressed
+install -m 0644 "${SCRIPT_DIR}/debian/copyright" "$BUILD_DIR/usr/share/doc/mintcam/copyright"
+gzip -9 -n -c "${SCRIPT_DIR}/debian/changelog" > "$BUILD_DIR/usr/share/doc/mintcam/changelog.gz"
 
-# Build
-dpkg-deb --build "$BUILD_DIR" "${DIST_DIR}/${PKG_NAME}"
+# Normalise permissions and ownership: Debian packages are root:root,
+# directories 0755, regular files 0644, executables 0755.
+chmod 0755 "$BUILD_DIR/usr/bin/mintcam" "$BUILD_DIR/usr/share/mintcam/run.sh"
+find "$BUILD_DIR" -type d -exec chmod 0755 {} +
+find "$BUILD_DIR" -type f -exec chmod 0644 {} +
+chmod 0755 "$BUILD_DIR/usr/bin/mintcam" "$BUILD_DIR/usr/share/mintcam/run.sh"
+chmod 0644 "$BUILD_DIR/DEBIAN/control"
+
+# Compress the manual page
+gzip -9 -n "$BUILD_DIR/usr/share/man/man1/mintcam.1"
+
+# Build under fakeroot so the archive entries are owned by root:root
+fakeroot dpkg-deb --build "$BUILD_DIR" "${DIST_DIR}/${PKG_NAME}"
 
 echo "Pacchetto creato: ${DIST_DIR}/${PKG_NAME}"

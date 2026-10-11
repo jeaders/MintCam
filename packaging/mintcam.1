@@ -1,0 +1,57 @@
+.TH MINTCAM 1 "October 2026" "MintCam 0.2.0" "User Commands"
+.SH NAME
+mintcam \- webcam application for photo capture and video recording
+.SH SYNOPSIS
+.B mintcam
+.SH DESCRIPTION
+MintCam turns a webcam into a live preview, photo capture and video
+recording tool. It also handles QR scanning, focus assist, face auto
+framing, time\-lapse, motion detection, background blur and RTMP streaming.
+.PP
+On first start the application creates a per\-user Python environment under
+~/.local/share/mintcam/.venv and installs the Python dependencies it needs,
+which requires a network connection and takes a minute or two. Later starts
+just reuse it.
+.SH FILES
+.TP
+.I ~/.local/share/mintcam/.venv
+Per\-user virtualenv with the runtime dependencies.
+.TP
+.I ~/.local/share/mintcam
+Settings and presets saved by the application.
+.TP
+.I ~/Videos
+Default location for recordings.
+.SH OPTIONS
+This program takes no options.
+.SH ENVIRONMENT
+.TP
+.I QT_QPA_PLATFORM
+Set to
+.I xcb
+or
+.I wayland
+to pick the Qt platform explicitly.
+.SH EXAMPLES
+.PP
+Start the application from the terminal:
+.PP
+.RS
+.nf
+mintcam
+.fi
+.RE
+.SH EXIT STATUS
+.TP
+.B 0
+The application closed normally.
+.TP
+.B 1
+The application failed to start, for example because no webcam was found.
+.SH BUGS
+Report bugs at https://github.com/jeaders/MintCam/issues
+.SH AUTHOR
+Alex Mirici
+.SH SEE ALSO
+The Software Manager entry for MintCam shows the same application with its
+description and screenshots.

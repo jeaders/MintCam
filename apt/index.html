@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MintCam — APT repository</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 46rem; margin: 3rem auto; padding: 0 1.25rem;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.7rem; margin-bottom: .25rem; }
+    .sub { opacity: .7; margin-top: 0; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(127,127,127,.15); border-radius: .4rem;
+    }
+    pre { padding: .85rem 1rem; overflow-x: auto; }
+    code { padding: .15rem .35rem; }
+    .card {
+      border: 1px solid rgba(127,127,127,.35); border-radius: .8rem;
+      padding: 1rem 1.25rem; margin: 1.5rem 0;
+    }
+    a { color: #2e7d32; }
+    footer { margin-top: 3rem; font-size: .85rem; opacity: .65; }
+  </style>
+</head>
+<body>
+  <h1>MintCam</h1>
+  <p class="sub">Webcam app for Linux Mint — signed APT repository</p>
+
+  <div class="card">
+    <strong>Install in one command</strong>
+    <pre>curl -fsSL https://jeaders.github.io/MintCam/apt/install.sh | sudo bash</pre>
+    <p style="margin-bottom:0">
+      Adds this repository (with its signing key), then installs
+      <code>mintcam</code> with <code>apt</code>. After that MintCam appears in the
+      <em>Software Manager</em> and updates arrive through <em>Update Manager</em>.
+    </p>
+  </div>
+
+  <h2>Manual installation</h2>
+  <pre>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://jeaders.github.io/MintCam/apt/mintcam-archive-key.asc \
+  | sudo gpg --dearmor --yes -o /etc/apt/keyrings/mintcam.gpg
+echo "deb [signed-by=/etc/apt/keyrings/mintcam.gpg] https://jeaders.github.io/MintCam/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/mintcam.list
+sudo apt update
+sudo apt install mintcam</pre>
+
+  <h2>Removal</h2>
+  <pre>sudo apt remove mintcam
+sudo rm /etc/apt/sources.list.d/mintcam.list /etc/apt/keyrings/mintcam.gpg
+sudo apt update</pre>
+
+  <h2>Verify the repository signature</h2>
+  <pre>curl -fsSL https://jeaders.github.io/MintCam/apt/mintcam-archive-key.asc | gpg --show-keys</pre>
+
+  <footer>
+    <a href="https://github.com/jeaders/MintCam">Source &amp; releases</a> ·
+    <a href="https://github.com/jeaders/MintCam/releases">Download the .deb directly</a>
+  </footer>
+</body>
+</html>

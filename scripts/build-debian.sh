@@ -51,7 +51,7 @@ echo "3.0 (quilt)" > debian/source/format
 cat > debian/changelog <<EOF
 mintcam (${DEB_VERSION}) UNRELEASED; urgency=medium
 
-  * Initial Debian packaging (Closes: #ITPBUG)
+  * Initial Debian packaging (Closes: #1150659)
     - built from the 0.2.1 upstream release, MIT licensed
     - PySide6/cv2/numpy/pyzbar/Pillow installed into a per-user virtualenv
       on first start; system dependencies are declared in Depends
@@ -67,6 +67,15 @@ tar -cJf "../mintcam_${VERSION}.orig.tar.xz" \
     -C "$BUILD_ROOT" "mintcam-${VERSION}"
 
 dpkg-source -b .
+
+# Sign the .dsc inline (clearsigned): dput and the Debian importer both verify
+# it, and a detached signature is not accepted. This must happen before the
+# .changes is generated, because the .changes records the checksums of the
+# signed .dsc.
+gpg --batch --yes --local-user "$GPG_KEY" --clearsign \
+    --output "../mintcam_${DEB_VERSION}.dsc.signed" \
+    "../mintcam_${DEB_VERSION}.dsc"
+mv "../mintcam_${DEB_VERSION}.dsc.signed" "../mintcam_${DEB_VERSION}.dsc"
 
 dpkg-genchanges -S > "../mintcam_${DEB_VERSION}_source.changes"
 

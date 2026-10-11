@@ -11,7 +11,16 @@ SUITE="stable"
 GPG_KEY="419E898D54713D236E923E5CD3A8A804EB07BFF9"
 KEY_FINGERPRINT="2E7B91458E94B7406900E3312D4D6DCD55745DDF"
 
-DEB="${1:-$REPO_DIR/dist/mintcam_0.2.0_all.deb}"
+# Default to the newest .deb produced by ./build-deb.sh; pass a path to override.
+if [ -n "${1:-}" ]; then
+    DEB="$1"
+else
+    DEB="$(ls -t "$REPO_DIR"/dist/mintcam_*_all.deb 2>/dev/null | head -1)"
+fi
+if [ -z "$DEB" ] || [ ! -f "$DEB" ]; then
+    echo "No .deb found in $REPO_DIR/dist. Run ./build-deb.sh first." >&2
+    exit 1
+fi
 
 # Reset only the generated parts, keep install.sh and the exported key.
 rm -rf "$APT_DIR/dists" "$APT_DIR/pool"

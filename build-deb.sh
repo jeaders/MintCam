@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="0.2.0"
+VERSION="0.2.2"
 PKG_NAME="mintcam_${VERSION}_all.deb"
 BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
@@ -21,7 +21,7 @@ Version: $VERSION
 Section: video
 Priority: optional
 Architecture: all
-Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0
+Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0
 Maintainer: Alex Mirici <hilliedmikerano@gmail.com>
 Homepage: https://github.com/jeaders/MintCam
 Description: Webcam application for photo capture and video recording

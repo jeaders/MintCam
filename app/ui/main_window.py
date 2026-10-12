@@ -582,6 +582,20 @@ class MainWindow(QMainWindow):
         self.lbl_rec.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
 
+        # Audio level meter, shown while recording with audio. It reads the
+        # loudness ffmpeg reports on stderr, so it needs no extra capture.
+        self.lbl_level = QLabel(self.preview_container)
+        self.lbl_level.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_level.setStyleSheet(
+            "background-color: rgba(17, 19, 25, 0.85); color: #5cd962;"
+            "font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;"
+        )
+        self.lbl_level.setText("Livello audio")
+        self.lbl_level.hide()
+        self.lbl_level.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.lbl_level.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        parent_layout.addWidget(self.lbl_level, 0, 0, 1, 1)
+
         # QR result
         self.lbl_qr = QLabel(self.preview_container)
         self.lbl_qr.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
@@ -1340,6 +1354,10 @@ class MainWindow(QMainWindow):
             self.lbl_rec.move(12, self.preview.height() - 36)
             self.lbl_rec.adjustSize()
             self.lbl_rec.raise_()
+        if hasattr(self, "lbl_level"):
+            self.lbl_level.adjustSize()
+            self.lbl_level.move(12, self.preview.height() - 36 - self.lbl_level.height() - 8)
+            self.lbl_level.raise_()
         if hasattr(self, "flash"):
             self.flash.setGeometry(self.preview_container.rect())
         if hasattr(self, "grid_overlay"):
@@ -1526,6 +1544,8 @@ class MainWindow(QMainWindow):
         self.lbl_rec.show()
         self.lbl_rec.raise_()
         self.lbl_rec.setText("REC")
+        if self._audio_enabled:
+            self._update_level_meter()
         self._rec_timer = QTimer(self)
         self._rec_timer.setInterval(500)
         self._rec_timer.timeout.connect(self._update_rec_time)
@@ -1542,6 +1562,7 @@ class MainWindow(QMainWindow):
         self.combo_resolution.setEnabled(True)
         self.combo_format.setEnabled(True)
         self.lbl_rec.hide()
+        self.lbl_level.hide()
         if path is not None:
             self._last_media = path
             self._add_recent_media(path)
@@ -1561,6 +1582,42 @@ class MainWindow(QMainWindow):
         elapsed = self.recorder.elapsed()
         m, s = divmod(int(elapsed), 60)
         self.lbl_rec.setText(f"REC {m:02d}:{s:02d}")
+        self._update_level_meter()
+
+    def _update_level_meter(self) -> None:
+        """Draw the audio level while a recording with audio is running."""
+        if not getattr(self, "_recording", False) or not self._audio_enabled:
+            if getattr(self, "lbl_level", None) is not None:
+                self.lbl_level.hide()
+            return
+        levels = self.recorder.audio_level()
+        peak = levels.get("peak")
+        if peak is None:
+            self.lbl_level.setText("Livello audio —")
+            self.lbl_level.setStyleSheet(
+                "background-color: rgba(17, 19, 25, 0.85); color: #9aa0ac;"
+                "font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;")
+            self.lbl_level.show()
+            return
+        # barra fatta di blocchi: 12 segmenti fra -60 e 0 dBFS
+        steps = 12
+        value = max(-60.0, min(0.0, peak))
+        filled = int(round((value + 60.0) / 60.0 * steps))
+        bar = "█" * filled + "░" * (steps - filled)
+        if peak >= -1.0:
+            colour = "#ef4444"      # in saturazione
+            hint = "troppo alto"
+        elif peak <= -45.0:
+            colour = "#f59e0b"      # quasi silenzio
+            hint = "troppo basso"
+        else:
+            colour = "#5cd962"
+            hint = ""
+        self.lbl_level.setText(f"{bar} {peak:5.1f} dBFS {hint}".rstrip())
+        self.lbl_level.setStyleSheet(
+            f"background-color: rgba(17, 19, 25, 0.85); color: {colour};"
+            "font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;")
+        self.lbl_level.show()
 
     # ------------------------------------------------------------------
     # Recent media

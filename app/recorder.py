@@ -1,5 +1,7 @@
 import logging
+import re
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -9,6 +11,23 @@ import numpy as np
 
 logger = logging.getLogger("mintcam.recorder")
 
+# ebur128 prints M (momentary loudness) and TPK (true peak, one value per
+# channel, so the first one is taken).
+_LEVEL_PATTERN = re.compile(
+    r"\bM:(?P<m>\s*-?\d+\.\d+|\s*-?nan|\s*-?inf)"
+    r".*?\bTPK:(?P<tpk>\s*-?\d+\.\d+|\s*-?nan|\s*-?inf)")
+
+
+def _to_float(value) -> Optional[float]:
+    """ffmpeg prints -nan, inf or -inf when the signal is undefined."""
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    if number != number or number in (float("inf"), float("-inf")):
+        return None
+    return number
+
 # TODO: handle case where ffmpeg is missing but audio=True (show error dialog?)
 
 
@@ -17,6 +36,8 @@ class Recorder:
         self._writer: Optional[cv2.VideoWriter] = None
         self._ffmpeg_proc: Optional[subprocess.Popen] = None
         self._using_audio: bool = False
+        self._meter_thread: Optional[threading.Thread] = None
+        self._last_levels: dict = {"momentary": None, "peak": None}
         self._started: Optional[float] = None
         self._path: Optional[Path] = None
         self._width: int = 640
@@ -67,6 +88,10 @@ class Recorder:
             "-preset", "ultrafast",
             "-c:a", "aac",
             "-shortest",
+            # ebur128 makes ffmpeg log the momentary loudness and the true peak
+            # on stderr, which is how the app draws the level meter without
+            # capturing the audio a second time. It does not change the output.
+            "-af", "ebur128=peak=true",
             "-pix_fmt", "yuv420p",
             "-f", "mp4",
             str(path),
@@ -87,8 +112,38 @@ class Recorder:
         self._using_audio = True
         self._started = time.time()
         self._path = path
+        # stderr must be drained: ffmpeg writes the ebur128 report there, and
+        # an unread pipe fills up after about 64 KB and blocks the recording.
+        self._meter_thread = threading.Thread(target=self._read_meter, daemon=True)
+        self._meter_thread.start()
         logger.info("Registrazione avviata con audio: %s", path)
         return True
+
+    def _read_meter(self) -> None:
+        """Parse the ebur128 report ffmpeg prints on stderr.
+
+        Each line looks like:
+        [Parsed_ebur128_0 @ 0x...] t: 1.20  TARGET:-23 LUFS  M:-31.4 S:-31.2
+        I:-31.2 LUFS  LRA: 0.0 LU  FTPK:-25.9 -25.9 dBFS  TPK:-25.9 -25.9 dBFS
+        The useful numbers are M (momentary loudness) and TPK (true peak).
+        """
+        if self._ffmpeg_proc is None or self._ffmpeg_proc.stderr is None:
+            return
+        for raw in self._ffmpeg_proc.stderr:
+            try:
+                line = raw.decode("utf-8", "replace")
+            except Exception:
+                continue
+            values = _LEVEL_PATTERN.search(line)
+            if values:
+                self._last_levels = {
+                    "momentary": _to_float(values.group("m")),
+                    "peak": _to_float(values.group("tpk")),
+                }
+
+    def audio_level(self) -> dict:
+        """Last level reported by ffmpeg, in dBFS. Silence is about -60."""
+        return dict(self._last_levels)
 
     def write(self, frame: np.ndarray) -> None:
         if self._ffmpeg_proc is not None:
@@ -151,6 +206,10 @@ class Recorder:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
+            if self._meter_thread is not None and self._meter_thread.is_alive():
+                self._meter_thread.join(timeout=2)
+            self._meter_thread = None
+            self._last_levels = {"momentary": None, "peak": None}
             logger.info("Registrazione con audio salvata: %s", path)
             return path
         writer = self._writer

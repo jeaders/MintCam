@@ -1,10 +1,17 @@
-mintcam (0.3.0) noble; urgency=medium
+mintcam (0.4.0) noble; urgency=medium
 
-  * Regenerate the promotional banners from scripts/make-banner.py so their
-    content cannot drift from the application again. The old images still
-    advertised PySide6 after the port to PyQt6, and the version was hardcoded
-    in a raster file, so every change meant editing pixels by hand.
-  * The banners now show PyQt6 and the current version, and are reproducible.
+  * Show the audio level while recording with audio. ffmpeg already measures
+    it through the ebur128 filter and reports the numbers on stderr, so the
+    recorder now parses that output and draws a meter with the true peak in
+    dBFS: green while the level is sane, amber when it is close to silence and
+    red when it saturates. No additional dependency is needed, ffmpeg was
+    already required for the audio track.
+  * Fix a latent deadlock in the same path: the recorder piped ffmpeg stderr
+    and never read it. Once the pipe filled (64 KB) ffmpeg blocked and the
+    recording stalled in the middle. The stderr is now drained by a reader
+    thread, which is also what feeds the meter.
+  * Tests: 5 regression tests for the level parsing, covering the line
+    variants ffmpeg produces, silent input (-nan) and clipping values.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 22:35:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 22:50:00 +0200
 

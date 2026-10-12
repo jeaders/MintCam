@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="0.2.2"
+VERSION="0.2.3"
 PKG_NAME="mintcam_${VERSION}_all.deb"
 BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
@@ -21,7 +21,7 @@ Version: $VERSION
 Section: video
 Priority: optional
 Architecture: all
-Depends: python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0
+Depends: python3 (>= 3.10), python3-pyqt6, python3-opencv, python3-numpy, python3-pil, python3-pyzbar, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0
 Maintainer: Alex Mirici <hilliedmikerano@gmail.com>
 Homepage: https://github.com/jeaders/MintCam
 Description: Webcam application for photo capture and video recording
@@ -67,7 +67,7 @@ rsync -a \
   --exclude='*.jpg' \
   --exclude='*.jpeg' \
   --exclude='*.log' \
-  "${SCRIPT_DIR}/app" "${SCRIPT_DIR}/requirements.txt" "${SCRIPT_DIR}/run.sh" "${SCRIPT_DIR}/README.md" \
+  "${SCRIPT_DIR}/app" "${SCRIPT_DIR}/README.md" \
   "$BUILD_DIR/usr/share/mintcam/"
 
 # /usr/share/doc: copyright must be plain text (Policy 12.5), changelog compressed
@@ -76,10 +76,9 @@ gzip -9 -n -c "${SCRIPT_DIR}/debian/changelog" > "$BUILD_DIR/usr/share/doc/mintc
 
 # Normalise permissions and ownership: Debian packages are root:root,
 # directories 0755, regular files 0644, executables 0755.
-chmod 0755 "$BUILD_DIR/usr/bin/mintcam" "$BUILD_DIR/usr/share/mintcam/run.sh"
 find "$BUILD_DIR" -type d -exec chmod 0755 {} +
 find "$BUILD_DIR" -type f -exec chmod 0644 {} +
-chmod 0755 "$BUILD_DIR/usr/bin/mintcam" "$BUILD_DIR/usr/share/mintcam/run.sh"
+chmod 0755 "$BUILD_DIR/usr/bin/mintcam"
 chmod 0644 "$BUILD_DIR/DEBIAN/control"
 
 # Compress the manual page

@@ -1,5 +1,5 @@
-from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QApplication
+from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtWidgets import QApplication
 
 # Mint green palette — inspired by Linux Mint branding
 MINT = "#3eb34a"
@@ -36,19 +36,19 @@ QGroupBox::title {
 
 def apply_dark_theme(app: QApplication) -> None:
     palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(BG_1))
-    palette.setColor(QPalette.WindowText, QColor(TEXT_1))
-    palette.setColor(QPalette.Base, QColor(BG_2))
-    palette.setColor(QPalette.AlternateBase, QColor(BG_1))
-    palette.setColor(QPalette.ToolTipBase, QColor(BG_3))
-    palette.setColor(QPalette.ToolTipText, QColor(TEXT_1))
-    palette.setColor(QPalette.Text, QColor(TEXT_1))
-    palette.setColor(QPalette.Button, QColor(BG_3))
-    palette.setColor(QPalette.ButtonText, QColor(TEXT_1))
-    palette.setColor(QPalette.BrightText, QColor(ACCENT_RED))
-    palette.setColor(QPalette.Link, QColor(ACCENT_BLUE))
-    palette.setColor(QPalette.Highlight, QColor(MINT))
-    palette.setColor(QPalette.HighlightedText, QColor(BG_0))
+    palette.setColor(QPalette.ColorRole.Window, QColor(BG_1))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(TEXT_1))
+    palette.setColor(QPalette.ColorRole.Base, QColor(BG_2))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor(BG_1))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(BG_3))
+    palette.setColor(QPalette.ColorRole.ToolTipText, QColor(TEXT_1))
+    palette.setColor(QPalette.ColorRole.Text, QColor(TEXT_1))
+    palette.setColor(QPalette.ColorRole.Button, QColor(BG_3))
+    palette.setColor(QPalette.ColorRole.ButtonText, QColor(TEXT_1))
+    palette.setColor(QPalette.ColorRole.BrightText, QColor(ACCENT_RED))
+    palette.setColor(QPalette.ColorRole.Link, QColor(ACCENT_BLUE))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(MINT))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor(BG_0))
     app.setPalette(palette)
     app.setStyleSheet(
         """

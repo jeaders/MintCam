@@ -10,9 +10,9 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QCursor, QImage, QPixmap
-from PySide6.QtWidgets import (
+from PyQt6.QtCore import QPoint, Qt, QTimer
+from PyQt6.QtGui import QCursor, QImage, QPixmap
+from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("MintCam")
         self.resize(1200, 780)
         self.setMinimumSize(860, 620)
-        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
         self.setStyleSheet("QMainWindow { border: none; }")
 
         self.settings = Settings()
@@ -149,8 +149,8 @@ class MainWindow(QMainWindow):
 
         sidebar_scroll = QScrollArea()
         sidebar_scroll.setWidgetResizable(True)
-        sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        sidebar_scroll.setFrameShape(QFrame.NoFrame)
+        sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sidebar_scroll.setFrameShape(QFrame.Shape.NoFrame)
         sidebar = QWidget()
         sidebar.setMinimumWidth(260)
         sidebar.setMaximumWidth(320)
@@ -184,13 +184,13 @@ class MainWindow(QMainWindow):
         preview_container_lay.setSpacing(0)
 
         self.preview = QLabel("Anteprima non disponibile")
-        self.preview.setAlignment(Qt.AlignCenter)
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumSize(640, 360)
         self.preview.setStyleSheet(
             "background-color: #0a0c10; color: #6b7280; font-size: 16px; border-radius: 12px;"
         )
         self.preview.setScaledContents(False)
-        self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         preview_container_lay.addWidget(self.preview, 0, 0, 1, 1)
 
         self._build_overlays(preview_container_lay)
@@ -225,16 +225,16 @@ class MainWindow(QMainWindow):
         logo_label.setFixedSize(40, 40)
         logo_pix = self._load_logo()
         if not logo_pix.isNull():
-            logo_pix = logo_pix.scaled(40, 40, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            logo_pix = logo_pix.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(logo_pix)
         else:
             logo_label.setText("📷")
         logo_label.setStyleSheet("font-size: 22px; padding: 4px; border-radius: 8px;")
-        logo_label.setAlignment(Qt.AlignCenter)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel("MintCam")
         title.setStyleSheet("font-size: 20px; font-weight: 800; color: #5cd962; letter-spacing: -0.3px;")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_status = QLabel("Inizializzazione webcam…")
         self.lbl_status.setStyleSheet("color: #9aa0ac; font-size: 12px;")
@@ -490,10 +490,10 @@ class MainWindow(QMainWindow):
     def _make_slider(self, minv: int, maxv: int, value: int, name: str) -> dict:
         label = QLabel(f"{name}: {value}")
         label.setStyleSheet("color: #9aa0ac; font-size: 12px;")
-        s = QSlider(Qt.Horizontal)
+        s = QSlider(Qt.Orientation.Horizontal)
         s.setRange(minv, maxv)
         s.setValue(value)
-        s.setTickPosition(QSlider.TicksBelow)
+        s.setTickPosition(QSlider.TickPosition.TicksBelow)
         s.setTickInterval(25)
         s.valueChanged.connect(lambda v: label.setText(f"{name}: {v}"))
         return {"label": label, "slider": s}
@@ -513,7 +513,7 @@ class MainWindow(QMainWindow):
             thumb = QLabel()
             thumb.setFixedSize(72, 54)
             thumb.setStyleSheet("background-color: #1e222b; border-radius: 8px; border: 1px solid #252a35;")
-            thumb.setAlignment(Qt.AlignCenter)
+            thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
             thumb.setToolTip("")
             lay.addWidget(thumb)
             self._recent_labels.append(thumb)
@@ -523,21 +523,21 @@ class MainWindow(QMainWindow):
     def _build_overlays(self, parent_layout) -> None:
         # Flash
         self.flash = QWidget(self.preview_container)
-        self.flash.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.flash.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.flash.setStyleSheet("background-color: rgba(255,255,255,200); border-radius: 12px;")
         self.flash.hide()
         parent_layout.addWidget(self.flash, 0, 0, 1, 1)
 
         # Grid
         self.grid_overlay = QWidget(self.preview_container)
-        self.grid_overlay.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.grid_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.grid_overlay.setStyleSheet("background-color: transparent;")
         self.grid_overlay.hide()
         parent_layout.addWidget(self.grid_overlay, 0, 0, 1, 1)
 
         # Countdown
         self.lbl_countdown = QLabel(self.preview_container)
-        self.lbl_countdown.setAlignment(Qt.AlignCenter)
+        self.lbl_countdown.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_countdown.setStyleSheet(
             "background-color: rgba(15,17,21,200); color: #5cd962; font-size: 80px; font-weight: 900;"
             "border: 3px solid #5cd962; border-radius: 20px; padding: 20px;"
@@ -547,35 +547,35 @@ class MainWindow(QMainWindow):
 
         # REC indicator - small red light at bottom
         self.lbl_rec = QLabel(self.preview_container)
-        self.lbl_rec.setAlignment(Qt.AlignCenter)
+        self.lbl_rec.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_rec.setStyleSheet(
             "background-color: #ef4444; color: white; font-size: 11px; font-weight: 700;"
             "padding: 4px 10px; border-radius: 10px;"
         )
         self.lbl_rec.hide()
-        self.lbl_rec.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.lbl_rec.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.lbl_rec.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.lbl_rec.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         parent_layout.addWidget(self.lbl_rec, 0, 0, 1, 1)
 
         # QR result
         self.lbl_qr = QLabel(self.preview_container)
-        self.lbl_qr.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        self.lbl_qr.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         self.lbl_qr.setWordWrap(True)
         self.lbl_qr.setStyleSheet(
             "background-color: rgba(15,17,21,200); color: #5cd962; font-size: 16px; font-weight: 700;"
             "border: 2px solid #5cd962; border-radius: 10px; padding: 10px;"
         )
         self.lbl_qr.hide()
-        self.lbl_qr.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.lbl_qr.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         parent_layout.addWidget(self.lbl_qr, 0, 0, 1, 1)
 
         # Focus assist indicator
         self.lbl_focus = QLabel(self.preview_container)
-        self.lbl_focus.setAlignment(Qt.AlignBottom | Qt.AlignRight)
+        self.lbl_focus.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
         self.lbl_focus.setFixedSize(24, 24)
         self.lbl_focus.setStyleSheet("border-radius: 12px; border: 3px solid #6b7280; background-color: transparent;")
         self.lbl_focus.hide()
-        self.lbl_focus.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.lbl_focus.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         parent_layout.addWidget(self.lbl_focus, 0, 0, 1, 1)
 
     def _build_footer(self) -> QWidget:
@@ -646,7 +646,7 @@ class MainWindow(QMainWindow):
     # Helpers
     # ------------------------------------------------------------------
     def _install_shortcuts(self) -> None:
-        from PySide6.QtGui import QKeySequence, QShortcut
+        from PyQt6.QtGui import QKeySequence, QShortcut
 
         QShortcut(QKeySequence("Space"), self, self._on_photo)
         QShortcut(QKeySequence("R"), self, self._on_record_toggle)
@@ -996,9 +996,9 @@ class MainWindow(QMainWindow):
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
 
         h, w = rgb.shape[:2]
-        img = QImage(rgb.data, w, h, w * 3, QImage.Format_RGB888).copy()
+        img = QImage(rgb.data, w, h, w * 3, QImage.Format.Format_RGB888).copy()
         pix = QPixmap.fromImage(img)
-        scaled = pix.scaled(self.preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled = pix.scaled(self.preview.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         self.preview.setPixmap(scaled)
         self._position_overlays()
         self._update_fps_counter()
@@ -1182,7 +1182,7 @@ class MainWindow(QMainWindow):
         }
 
     def _save_preset(self) -> None:
-        from PySide6.QtWidgets import QInputDialog
+        from PyQt6.QtWidgets import QInputDialog
         name, ok = QInputDialog.getText(self, "Salva preset", "Nome preset:")
         if not ok or not name.strip():
             return
@@ -1452,7 +1452,7 @@ class MainWindow(QMainWindow):
                 else:
                     pix = QPixmap(str(path))
                     if not pix.isNull():
-                        pix = pix.scaled(72, 54, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                        pix = pix.scaled(72, 54, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
                         rect = pix.rect()
                         rect.moveCenter(QPoint(36, 27))
                         pix = pix.copy(rect)
@@ -1461,7 +1461,7 @@ class MainWindow(QMainWindow):
                         lbl.setPixmap(QPixmap())
                         lbl.setText("🖼")
                 lbl.setToolTip(str(path))
-                lbl.setCursor(QCursor(Qt.PointingHandCursor))
+                lbl.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
                 lbl.mousePressEvent = lambda ev, p=path: self._open_recent(p)
             else:
                 lbl.clear()

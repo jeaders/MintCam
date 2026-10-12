@@ -11,7 +11,7 @@ Rules-Requires-Root: no
 
 Package: mintcam
 Architecture: all
-Depends: ${misc:Depends}, python3 (>= 3.10), python3-pip, python3-venv, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0
+Depends: ${misc:Depends}, python3 (>= 3.10), python3-pyqt6, python3-opencv, python3-numpy, python3-pil, python3-pyzbar, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0
 Description: webcam application for photo capture and recording
  MintCam turns a webcam into a live preview, photo capture and video
  recording tool. It also handles QR scanning, focus assist, face auto

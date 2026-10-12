@@ -1,38 +1,14 @@
-mintcam (0.2.2) noble; urgency=medium
+mintcam (0.2.3) noble; urgency=medium
 
-  * Do not ship local working notes in the source package: Docs/ and
-    SPONSORSHIP_REQUEST.md are now excluded by scripts/build-ppa.sh.
+  * Port the application from PySide6 to PyQt6 so the Python dependencies come
+    from the archive (python3-pyqt6, python3-opencv, python3-numpy,
+    python3-pil, python3-pyzbar) instead of a virtualenv created on first
+    start. This is what a Debian package requires: no code is downloaded at
+    run time and the versions are the ones shipped by the distribution.
+  * The /usr/bin/mintcam launcher no longer creates a virtualenv; it runs the
+    system python3 with the packaged modules.
+  * requirements.txt is kept for running from a git checkout, updated to
+    PyQt6, and is no longer shipped inside the package.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 00:55:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 11:45:00 +0200
 
-mintcam (0.2.1) noble; urgency=medium
-
-  * Packaging fixes after the first lintian run:
-    - do not ship the website source (index.html) in the Debian source
-      package, it is not needed to build the package and lintian flagged it
-      with source-is-missing
-    - debian/copyright: separate stanza for mintcam.appdata.xml carrying its
-      CC0-1.0 metadata license, which fixes the appstream metadata license
-      mismatch warning
-    - Standards-Version 4.6.2, the version lintian in noble knows
-
- -- Alex Mirici <hilliedmikerano@gmail.com>  Sun, 11 Oct 2026 13:30:00 +0200
-
-mintcam (0.2.0) noble; urgency=medium
-
-  * Renamed app ID to io.github.jeaders.MintCam
-  * Added LICENSE file and Flatpak packaging
-  * Fixed recording writer release sync
-  * Updated icon assets for all sizes
-
- -- Alex Mirici <hilliedmikerano@gmail.com>  Thu, 09 Oct 2026 12:00:00 +0000
-
-mintcam (0.1.0) noble; urgency=medium
-
-  * Initial release.
-  * Features: live preview, photo capture, video recording with audio,
-    RTMP streaming, QR scanner, focus assist, face auto-framing,
-    time-lapse, motion detection, background blur (Bokeh), preset
-    manager, digital zoom, social sharing, and dark theme UI.
-
- -- Alex Mirici <hilliedmikerano@gmail.com>  Wed, 07 Oct 2026 19:58:00 +0000

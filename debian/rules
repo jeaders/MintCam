@@ -26,7 +26,7 @@ override_dh_auto_install:
 			$(CURDIR)/debian/mintcam/usr/share/icons/hicolor/$${size}x$${size}/apps/mintcam.png; \
 	done
 	install -d $(CURDIR)/debian/mintcam/usr/share/mintcam
-	cp -r app requirements.txt run.sh README.md \
+	cp -r app README.md \
 		$(CURDIR)/debian/mintcam/usr/share/mintcam/
 	find $(CURDIR)/debian/mintcam -name '__pycache__' -exec rm -rf {} +
 	find $(CURDIR)/debian/mintcam -name '*.pyc' -delete

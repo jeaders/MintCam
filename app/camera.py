@@ -5,7 +5,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QObject, Signal, QThread
+from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 # NOTE: tested with Logitech C920 and C270 on Mint 21. Using V4L2 backend
 logger = logging.getLogger("mintcam.camera")
@@ -48,9 +48,9 @@ def enumerate_cameras() -> list[tuple[int, str]]:
 
 
 class CameraWorker(QThread):
-    frame_ready = Signal(np.ndarray)
-    error = Signal(str)
-    camera_changed = Signal(int, str)
+    frame_ready = pyqtSignal(np.ndarray)
+    error = pyqtSignal(str)
+    camera_changed = pyqtSignal(int, str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)

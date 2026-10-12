@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The version is pinned while the RFS (bug 1150664) is under review:
 # the sponsor reviews exactly this version, so it must not drift.
-VERSION="0.2.1"
+VERSION="0.2.3"
 REVISION="1"
 DEB_VERSION="${VERSION}-${REVISION}"
 GPG_KEY="419E898D54713D236E923E5CD3A8A804EB07BFF9"
@@ -54,11 +54,13 @@ echo "3.0 (quilt)" > debian/source/format
 cat > debian/changelog <<EOF
 mintcam (${DEB_VERSION}) UNRELEASED; urgency=medium
 
-  * Initial Debian packaging (Closes: #1150659)
-    - built from the 0.2.1 upstream release, MIT licensed
-    - PySide6/cv2/numpy/pyzbar/Pillow installed into a per-user virtualenv
-      on first start; system dependencies are declared in Depends
-    - the reasoning is documented in debian/README.source
+  * Initial Debian packaging (Closes: #1150659): webcam application, MIT,
+    built from the 0.2.3 upstream release.
+  * Use the Python modules from the archive: python3-pyqt6, python3-opencv,
+    python3-numpy, python3-pil, python3-pyzbar. The previous revision shipped
+    requirements.txt and pip-installed it into a per-user virtualenv on first
+    start, which cannot be accepted in Debian. The app was ported from PySide6
+    to PyQt6 for this reason; PySide6 is not packaged in Ubuntu.
 
  -- Alex Mirici <hilliedmikerano@gmail.com>  Sun, 11 Oct 2026 20:00:00 +0200
 EOF

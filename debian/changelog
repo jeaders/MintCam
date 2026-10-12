@@ -1,18 +1,15 @@
-mintcam (0.2.5) noble; urgency=medium
+mintcam (0.2.6) noble; urgency=medium
 
-  * Copy the last photo to the clipboard with a button or Ctrl+Shift+C, and
-    reveal the last file in the file manager. Both work on images; for a video
-    the folder is opened instead, since a video cannot go to the clipboard.
-    The four previous share buttons opened a web page and left the file to the
-    user (Telegram and Discord got only the file name, one of them opened the
-    project releases), so they are gone.
-  * Warn before recording when the free space is low, instead of letting the
-    recording die in the middle because ffmpeg or the writer hit the wall.
-  * Watch the camera device list every five seconds, so unplugging or
-    replugging a webcam updates the selector and the app falls back to a
-    working camera instead of staying stuck on a dead one.
-  * The recording timer already showed the elapsed time; it now also stays in
-    sync after a pause.
+  * Interface text: shorter and consistent labels. The record button reads
+    "Registra" / "Ferma" instead of "Avvia registrazione" / "Ferma
+    registrazione", the photo button reads "Scatta foto", and the streaming
+    button "Avvia streaming".
+  * Checkboxes are now in Italian throughout: "Scanner QR e codici a barre",
+    "Aiuto messa a fuoco", "Inquadratura sul volto", "Sfondo sfocato",
+    "Effetto specchio", "Time-lapse (foto in sequenza)". Several of them were
+    in English while the rest of the interface is Italian.
+  * The recording indicator reads "REC mm:ss" instead of "● REC mm:ss"; the
+    dot is drawn by the stylesheet, so it is not part of the text any more.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 18:10:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 20:20:00 +0200
 

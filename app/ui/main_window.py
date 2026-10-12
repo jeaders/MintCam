@@ -364,7 +364,7 @@ class MainWindow(QMainWindow):
         grp = QGroupBox("Strumenti")
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
-        self.chk_mirror = QCheckBox("Specchio")
+        self.chk_mirror = QCheckBox("Effetto specchio")
         self.chk_mirror.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_mirror.toggled.connect(self._on_mirror_changed)
         lay.addWidget(self.chk_mirror)
@@ -376,16 +376,16 @@ class MainWindow(QMainWindow):
         self.chk_pause.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_pause.toggled.connect(self._on_pause_changed)
         lay.addWidget(self.chk_pause)
-        self.chk_qr = QCheckBox("QR/Barcode scanner")
+        self.chk_qr = QCheckBox("Scanner QR e codici a barre")
         self.chk_qr.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_qr.setEnabled(_QR_AVAILABLE)
         self.chk_qr.toggled.connect(self._on_qr_changed)
         lay.addWidget(self.chk_qr)
-        self.chk_focus = QCheckBox("Focus assist")
+        self.chk_focus = QCheckBox("Aiuto messa a fuoco")
         self.chk_focus.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_focus.toggled.connect(self._on_focus_changed)
         lay.addWidget(self.chk_focus)
-        self.chk_face = QCheckBox("Face auto-framing")
+        self.chk_face = QCheckBox("Inquadratura sul volto")
         self.chk_face.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_face.toggled.connect(self._on_face_changed)
         lay.addWidget(self.chk_face)
@@ -395,7 +395,7 @@ class MainWindow(QMainWindow):
         self.chk_audio.toggled.connect(self._on_audio_changed)
         lay.addWidget(self.chk_audio)
 
-        self.chk_blur_bg = QCheckBox("Sfoca sfondo (Bokeh)")
+        self.chk_blur_bg = QCheckBox("Sfondo sfocato")
         self.chk_blur_bg.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_blur_bg.toggled.connect(self._on_blur_bg_changed)
         lay.addWidget(self.chk_blur_bg)
@@ -452,12 +452,12 @@ class MainWindow(QMainWindow):
         )
         lay.addWidget(QLabel("URL stream RTMP:"))
         lay.addWidget(self.txt_stream_url)
-        self.btn_stream = QPushButton("Avvia stream")
+        self.btn_stream = QPushButton("Avvia streaming")
         self.btn_stream.setObjectName("ghost")
         self.btn_stream.setMinimumHeight(32)
         self.btn_stream.clicked.connect(self._on_stream_toggle)
         lay.addWidget(self.btn_stream)
-        self.chk_timelapse = QCheckBox("Time-lapse")
+        self.chk_timelapse = QCheckBox("Time-lapse (foto in sequenza)")
         self.chk_timelapse.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         lay.addWidget(self.chk_timelapse)
@@ -605,12 +605,12 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
 
-        self.btn_photo = QPushButton("📷 Scatta Foto")
+        self.btn_photo = QPushButton("Scatta foto")
         self.btn_photo.setObjectName("primary")
         self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
 
-        self.btn_record = QPushButton("Avvia registrazione")
+        self.btn_record = QPushButton("Registra")
         self.btn_record.setObjectName("record")
         self.btn_record.setMinimumHeight(44)
         self.btn_record.clicked.connect(self._on_record_toggle)
@@ -627,7 +627,7 @@ class MainWindow(QMainWindow):
 
         # Clipboard copy: the photo goes straight into the system clipboard,
         # so it can be pasted into Telegram, Discord, GIMP or anything else.
-        self.btn_copy = QPushButton("📋 Copia scatto")
+        self.btn_copy = QPushButton("Copia scatto")
         self.btn_copy.setObjectName("ghost")
         self.btn_copy.setMinimumHeight(44)
         self.btn_copy.setToolTip(
@@ -636,7 +636,7 @@ class MainWindow(QMainWindow):
         self.btn_copy.clicked.connect(self._copy_last_media_to_clipboard)
 
         # Reveal: opens the folder of the last photo or recording selected
-        self.btn_reveal = QPushButton("Mostra ultimo file")
+        self.btn_reveal = QPushButton("Mostra file")
         self.btn_reveal.setObjectName("ghost")
         self.btn_reveal.setMinimumHeight(44)
         self.btn_reveal.setToolTip(
@@ -1064,7 +1064,7 @@ class MainWindow(QMainWindow):
             self._stream_frame(stream_frame)
         if getattr(self, "_qr_enabled", False):
             self._scan_qr(processed)
-            self.lbl_qr.setText("Scanning…" if not getattr(self, "_qr_result", None) else self._qr_result)
+            self.lbl_qr.setText("Scansione…" if not getattr(self, "_qr_result", None) else self._qr_result)
             self.lbl_qr.show()
             self.lbl_qr.raise_()
         else:
@@ -1512,7 +1512,7 @@ class MainWindow(QMainWindow):
             self._show_status("Impossibile avviare la registrazione: codec non disponibile", error=True)
             return
         self._recording = True
-        self.btn_record.setText("Ferma registrazione")
+        self.btn_record.setText("Ferma")
         self.btn_record.setObjectName("stop")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
@@ -1520,7 +1520,7 @@ class MainWindow(QMainWindow):
         self.combo_format.setEnabled(False)
         self.lbl_rec.show()
         self.lbl_rec.raise_()
-        self.lbl_rec.setText("● REC")
+        self.lbl_rec.setText("REC")
         self._rec_timer = QTimer(self)
         self._rec_timer.setInterval(500)
         self._rec_timer.timeout.connect(self._update_rec_time)
@@ -1530,7 +1530,7 @@ class MainWindow(QMainWindow):
     def _stop_recording(self) -> None:
         path = self.recorder.stop()
         self._recording = False
-        self.btn_record.setText("Avvia registrazione")
+        self.btn_record.setText("Registra")
         self.btn_record.setObjectName("record")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
@@ -1555,7 +1555,7 @@ class MainWindow(QMainWindow):
     def _update_rec_time(self) -> None:
         elapsed = self.recorder.elapsed()
         m, s = divmod(int(elapsed), 60)
-        self.lbl_rec.setText(f"● REC {m:02d}:{s:02d}")
+        self.lbl_rec.setText(f"REC {m:02d}:{s:02d}")
 
     # ------------------------------------------------------------------
     # Recent media
@@ -1973,7 +1973,7 @@ class MainWindow(QMainWindow):
             self._stream_process = None
         self._streaming = False
         self._stream_frame_count = 0
-        self.btn_stream.setText("Avvia stream")
+        self.btn_stream.setText("Avvia streaming")
         self.btn_stream.setObjectName("ghost")
         self.btn_stream.style().unpolish(self.btn_stream)
         self.btn_stream.style().polish(self.btn_stream)
@@ -1997,7 +1997,7 @@ class MainWindow(QMainWindow):
                 self._stream_frame_count += 1
             except (BrokenPipeError, OSError):
                 self._streaming = False
-                self.btn_stream.setText("Avvia stream")
+                self.btn_stream.setText("Avvia streaming")
                 self.btn_stream.setObjectName("ghost")
                 self.btn_stream.style().unpolish(self.btn_stream)
                 self.btn_stream.style().polish(self.btn_stream)

@@ -1,14 +1,23 @@
-mintcam (0.2.3) noble; urgency=medium
+mintcam (0.2.4) noble; urgency=medium
 
-  * Port the application from PySide6 to PyQt6 so the Python dependencies come
-    from the archive (python3-pyqt6, python3-opencv, python3-numpy,
-    python3-pil, python3-pyzbar) instead of a virtualenv created on first
-    start. This is what a Debian package requires: no code is downloaded at
-    run time and the versions are the ones shipped by the distribution.
-  * The /usr/bin/mintcam launcher no longer creates a virtualenv; it runs the
-    system python3 with the packaged modules.
-  * requirements.txt is kept for running from a git checkout, updated to
-    PyQt6, and is no longer shipped inside the package.
+  * Fix a crash in the preview loop: an exception raised by any per-frame step
+    (filter, face framing, motion detection, recorder, streaming) escaped
+    _update_preview and took the application down, because PyQt aborts the
+    process when a slot raises. The pipeline is now guarded, the error is
+    logged with the frame count, and the preview stops visibly after ten
+    consecutive failures instead of dying silently.
+  * Fix the face auto-framing, which never worked on this system: the Haar
+    cascade is shipped in the separate opencv-data package, while the code
+    looked for it in cv2.data, which the Ubuntu opencv build does not expose.
+    The cascade is now looked up in the pip location and in the Debian/Ubuntu
+    paths, opencv-data is a dependency, and the classifier is built once
+    instead of on every frame.
+  * When the face framing cannot work for any reason it now disables itself
+    after five attempts and says why, instead of doing nothing on every frame.
+  * Show an error dialog when recording with audio is requested but ffmpeg is
+    not installed, instead of failing silently.
+  * Tests: 3 regression tests for the preview guard and 1 for the face framing
+    fallback.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 11:45:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 13:20:00 +0200
 

@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -47,8 +48,15 @@ from app.ui.styles import apply_dark_theme
 
 logger = logging.getLogger("mintcam.ui")
 
-# FIXME: face detection sometimes crashes on frame resize — wrap in try/except
-# TODO: extract filter logic into separate module for cleaner tests
+# How many consecutive failures before a feature gives up visibly instead of
+# failing silently on every frame.
+_FACE_FAILURE_LIMIT = 5
+_PREVIEW_FAILURE_LIMIT = 10
+
+# Per-frame processing is guarded: an exception in any step (filter, face
+# framing, motion, recorder, streaming) must not take the whole application
+# down, because PyQt aborts the process on an unhandled exception in a slot.
+# See _update_preview and _apply_face_framing.
 
 
 class MainWindow(QMainWindow):
@@ -106,6 +114,10 @@ class MainWindow(QMainWindow):
         self._motion_inactive_timer: Optional[QTimer] = None
         self._motion_last_detected: float = 0.0
         self._presets: dict = {}
+        self._face_failures: int = 0
+        self._preview_failures: int = 0
+        self._face_cascade: Optional[Path] = None
+        self._face_classifier_obj = None
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
@@ -935,6 +947,21 @@ class MainWindow(QMainWindow):
         frame = self._current_frame
         if frame is None:
             return
+        try:
+            self._process_and_paint(frame)
+        except Exception as exc:
+            # PyQt aborts the process on an unhandled exception raised inside a
+            # slot, so a single bad frame must never escape this method.
+            self._preview_failures += 1
+            logger.error("Errore elaborazione anteprima (%d): %s",
+                         self._preview_failures, exc, exc_info=True)
+            if self._preview_failures >= _PREVIEW_FAILURE_LIMIT:
+                self._preview_timer.stop()
+                self._show_status(
+                    "Anteprima fermata dopo errori ripetuti. Controlla i log.",
+                    error=True)
+
+    def _process_and_paint(self, frame: np.ndarray) -> None:
         processed = self._apply_adjustments(self._apply_filter(frame.copy()))
         processed = self._apply_format(processed)
         processed = self._apply_zoom(processed)
@@ -1371,6 +1398,16 @@ class MainWindow(QMainWindow):
         if frame is None:
             self._show_status("Nessun frame disponibile per la registrazione", error=True)
             return
+        if self._audio_enabled and shutil.which("ffmpeg") is None:
+            QMessageBox.critical(
+                self,
+                "ffmpeg non trovato",
+                "La registrazione con audio richiede ffmpeg, che non è installato.\n\n"
+                "Installa il pacchetto ffmpeg (sudo apt install ffmpeg) oppure "
+                "disattiva l'audio per registrare solo il video.",
+            )
+            self._show_status("Registrazione con audio annullata: ffmpeg mancante", error=True)
+            return
         self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
         ok = self.recorder.start(frame, path, fps=self._fps, audio=self._audio_enabled)
@@ -1624,35 +1661,99 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Face auto-framing
     # ------------------------------------------------------------------
+    def _find_face_cascade(self) -> Optional[Path]:
+        """Locate the Haar cascade used by the face auto-framing.
+
+        opencv-python from pip exposes it through cv2.data; on Debian and
+        Ubuntu the xml files ship in the separate opencv-data package, so both
+        locations are tried. The result is cached in self._face_cascade.
+        """
+        cached = getattr(self, "_face_cascade", None)
+        if cached is not None:
+            return cached
+        candidates = []
+        data = getattr(cv2, "data", None)
+        if data is not None and getattr(data, "haarcascades", None):
+            candidates.append(Path(str(data.haarcascades)) / "haarcascade_frontalface_default.xml")
+        candidates += [
+            Path("/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml"),
+            Path("/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml"),
+            Path("/usr/local/share/opencv4/haarcascades/haarcascade_frontalface_default.xml"),
+        ]
+        for path in candidates:
+            if path.is_file():
+                self._face_cascade = path
+                return path
+        self._face_cascade = None
+        return None
+
     def _apply_face_framing(self, frame: np.ndarray) -> np.ndarray:
+        """Crop the preview around the largest detected face (digital zoom)."""
         if not getattr(self, "_face_framing_enabled", False):
             return frame
         try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-            cascade = cv2.CascadeClassifier(cascade_path)
-            if cascade.empty():
-                logger.debug("Face framing: cascade vuoto")
+            cascade_path = self._find_face_cascade()
+            if cascade_path is None:
+                self._face_failures += 1
+                logger.debug("Cascade volti non trovata (%d/%d)",
+                             self._face_failures, _FACE_FAILURE_LIMIT)
+                if self._face_failures >= _FACE_FAILURE_LIMIT:
+                    self._face_framing_enabled = False
+                    if getattr(self, "chk_face", None) is not None:
+                        self.chk_face.setChecked(False)
+                    self._show_status(
+                        "Inquadratura volti disattivata: dati mancanti. "
+                        "Installa il pacchetto opencv-data.", error=True)
                 return frame
-            faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            cascade = self._face_classifier()
+            if cascade is None or cascade.empty():
+                logger.debug("Face framing: cascade non caricabile")
+                return frame
+            faces = cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
             logger.debug("Face framing: volti rilevati=%d", len(faces))
+            self._face_failures = 0
             if len(faces) == 0:
                 return frame
             x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
             cx, cy = x + w // 2, y + h // 2
             fh, fw = frame.shape[:2]
-            target_zoom = 1.6
-            new_w = int(fw / target_zoom)
-            new_h = int(fh / target_zoom)
+            new_w = int(fw / 1.6)
+            new_h = int(fh / 1.6)
             x1 = max(0, min(fw - new_w, cx - new_w // 2))
             y1 = max(0, min(fh - new_h, cy - new_h // 2))
             return frame[y1 : y1 + new_h, x1 : x1 + new_w]
-        except AttributeError:
-            logger.debug("CascadeClassifier non disponibile in questo OpenCV")
-            return frame
         except Exception as exc:
-            logger.debug("Errore face framing: %s", exc)
+            self._face_failures += 1
+            logger.debug("Errore face framing (%d/%d): %s",
+                         self._face_failures, _FACE_FAILURE_LIMIT, exc)
+            if self._face_failures >= _FACE_FAILURE_LIMIT:
+                self._face_framing_enabled = False
+                if getattr(self, "chk_face", None) is not None:
+                    self.chk_face.setChecked(False)
+                self._show_status("Inquadratura volti disattivata dopo errori ripetuti",
+                                  error=True)
             return frame
+
+    def _face_classifier(self):
+        """Build the cascade classifier once and reuse it.
+
+        Loading the xml on every frame costs milliseconds and is the main
+        reason the feature felt broken under load.
+        """
+        classifier = getattr(self, "_face_classifier_obj", None)
+        if classifier is not None:
+            return classifier
+        path = self._find_face_cascade()
+        if path is None:
+            return None
+        try:
+            self._face_classifier_obj = cv2.CascadeClassifier(str(path))
+            return self._face_classifier_obj
+        except Exception as exc:
+            logger.debug("Impossibile caricare il cascade: %s", exc)
+            return None
 
     # ------------------------------------------------------------------
     # Time-lapse

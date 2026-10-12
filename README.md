@@ -71,8 +71,8 @@ and install:
 
 ```bash
 # Direct download of the current release
-wget https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.2.7_all.deb
-sudo apt install ./mintcam_0.2.7_all.deb
+wget https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.3.0_all.deb
+sudo apt install ./mintcam_0.3.0_all.deb
 ```
 
 `apt install ./...` resolves the dependencies (`v4l-utils`, `ffmpeg`,

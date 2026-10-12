@@ -1,23 +1,18 @@
-mintcam (0.2.4) noble; urgency=medium
+mintcam (0.2.5) noble; urgency=medium
 
-  * Fix a crash in the preview loop: an exception raised by any per-frame step
-    (filter, face framing, motion detection, recorder, streaming) escaped
-    _update_preview and took the application down, because PyQt aborts the
-    process when a slot raises. The pipeline is now guarded, the error is
-    logged with the frame count, and the preview stops visibly after ten
-    consecutive failures instead of dying silently.
-  * Fix the face auto-framing, which never worked on this system: the Haar
-    cascade is shipped in the separate opencv-data package, while the code
-    looked for it in cv2.data, which the Ubuntu opencv build does not expose.
-    The cascade is now looked up in the pip location and in the Debian/Ubuntu
-    paths, opencv-data is a dependency, and the classifier is built once
-    instead of on every frame.
-  * When the face framing cannot work for any reason it now disables itself
-    after five attempts and says why, instead of doing nothing on every frame.
-  * Show an error dialog when recording with audio is requested but ffmpeg is
-    not installed, instead of failing silently.
-  * Tests: 3 regression tests for the preview guard and 1 for the face framing
-    fallback.
+  * Copy the last photo to the clipboard with a button or Ctrl+Shift+C, and
+    reveal the last file in the file manager. Both work on images; for a video
+    the folder is opened instead, since a video cannot go to the clipboard.
+    The four previous share buttons opened a web page and left the file to the
+    user (Telegram and Discord got only the file name, one of them opened the
+    project releases), so they are gone.
+  * Warn before recording when the free space is low, instead of letting the
+    recording die in the middle because ffmpeg or the writer hit the wall.
+  * Watch the camera device list every five seconds, so unplugging or
+    replugging a webcam updates the selector and the app falls back to a
+    working camera instead of staying stuck on a dead one.
+  * The recording timer already showed the elapsed time; it now also stays in
+    sync after a pause.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 13:20:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 18:10:00 +0200
 

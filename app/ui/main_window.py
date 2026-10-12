@@ -10,8 +10,8 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from PyQt6.QtCore import QPoint, Qt, QTimer
-from PyQt6.QtGui import QCursor, QImage, QPixmap
+from PyQt6.QtCore import QPoint, Qt, QTimer, QUrl
+from PyQt6.QtGui import QCursor, QDesktopServices, QGuiApplication, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -50,6 +50,13 @@ logger = logging.getLogger("mintcam.ui")
 
 # How many consecutive failures before a feature gives up visibly instead of
 # failing silently on every frame.
+class _RecordingCancelled(Exception):
+    """Raised when the user declines to record (for example low disk space)."""
+
+
+# How often the device list is re-checked for hotplug.
+_CAMERA_WATCH_INTERVAL_MS = 5000
+
 _FACE_FAILURE_LIMIT = 5
 _PREVIEW_FAILURE_LIMIT = 10
 
@@ -117,6 +124,7 @@ class MainWindow(QMainWindow):
         self._face_failures: int = 0
         self._preview_failures: int = 0
         self._face_cascade: Optional[Path] = None
+        self._last_camera_devices: list = list(self._camera_devices_initial())
         self._face_classifier_obj = None
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
@@ -617,26 +625,23 @@ class MainWindow(QMainWindow):
         self.btn_fullscreen.setMinimumHeight(44)
         self.btn_fullscreen.clicked.connect(self._toggle_fullscreen)
 
-        # Share buttons
-        self.btn_share_telegram = QPushButton("Condividi Telegram")
-        self.btn_share_telegram.setObjectName("ghost")
-        self.btn_share_telegram.setMinimumHeight(44)
-        self.btn_share_telegram.clicked.connect(self._share_to_telegram)
+        # Clipboard copy: the photo goes straight into the system clipboard,
+        # so it can be pasted into Telegram, Discord, GIMP or anything else.
+        self.btn_copy = QPushButton("📋 Copia scatto")
+        self.btn_copy.setObjectName("ghost")
+        self.btn_copy.setMinimumHeight(44)
+        self.btn_copy.setToolTip(
+            "Copia l'ultima foto negli appunti (Ctrl+Maiusc+C). "
+            "Per i video usa il pacchetto .deb o il confronto con la cartella.")
+        self.btn_copy.clicked.connect(self._copy_last_media_to_clipboard)
 
-        self.btn_share_discord = QPushButton("Condividi Discord")
-        self.btn_share_discord.setObjectName("ghost")
-        self.btn_share_discord.setMinimumHeight(44)
-        self.btn_share_discord.clicked.connect(self._share_to_discord)
-
-        self.btn_share_github = QPushButton("Scarica .deb")
-        self.btn_share_github.setObjectName("ghost")
-        self.btn_share_github.setMinimumHeight(44)
-        self.btn_share_github.clicked.connect(self._share_to_github)
-
-        self.btn_share_gdrive = QPushButton("Condividi Drive")
-        self.btn_share_gdrive.setObjectName("ghost")
-        self.btn_share_gdrive.setMinimumHeight(44)
-        self.btn_share_gdrive.clicked.connect(self._share_to_google_drive)
+        # Reveal: opens the folder of the last photo or recording selected
+        self.btn_reveal = QPushButton("Mostra ultimo file")
+        self.btn_reveal.setObjectName("ghost")
+        self.btn_reveal.setMinimumHeight(44)
+        self.btn_reveal.setToolTip(
+            "Apre la cartella dell'ultimo file salvato, selezionandolo")
+        self.btn_reveal.clicked.connect(self._reveal_last_media)
 
         self.btn_exit = QPushButton("Esci")
         self.btn_exit.setObjectName("ghost")
@@ -647,10 +652,8 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.btn_record)
         lay.addWidget(self.btn_folder)
         lay.addWidget(self.btn_fullscreen)
-        lay.addWidget(self.btn_share_telegram)
-        lay.addWidget(self.btn_share_discord)
-        lay.addWidget(self.btn_share_github)
-        lay.addWidget(self.btn_share_gdrive)
+        lay.addWidget(self.btn_copy)
+        lay.addWidget(self.btn_reveal)
         lay.addWidget(self.btn_exit)
         return footer
 
@@ -661,6 +664,7 @@ class MainWindow(QMainWindow):
         from PyQt6.QtGui import QKeySequence, QShortcut
 
         QShortcut(QKeySequence("Space"), self, self._on_photo)
+        QShortcut(QKeySequence("Ctrl+Shift+C"), self, self._copy_last_media_to_clipboard)
         QShortcut(QKeySequence("R"), self, self._on_record_toggle)
         QShortcut(QKeySequence("F"), self, self._toggle_fullscreen)
         QShortcut(QKeySequence("Esc"), self, self._exit_fullscreen_or_close)
@@ -737,11 +741,67 @@ class MainWindow(QMainWindow):
         self.camera.error.connect(self._on_camera_error)
         self.camera.camera_changed.connect(self._on_camera_changed_signal)
         self._enumerate_cameras()
+        self._camera_watch = QTimer(self)
+        self._camera_watch.setInterval(_CAMERA_WATCH_INTERVAL_MS)
+        self._camera_watch.timeout.connect(self._watch_cameras)
+        self._camera_watch.start()
         self.camera.start()
         self._preview_timer = QTimer(self)
         self._preview_timer.setInterval(int(1000 / max(self._fps, 1)))
         self._preview_timer.timeout.connect(self._update_preview)
         self._preview_timer.start()
+
+    @staticmethod
+    def _camera_devices_initial() -> list:
+        from app.camera import enumerate_cameras as _enumerate
+        try:
+            return list(_enumerate())
+        except Exception:
+            return []
+
+    def _camera_signature(self) -> list:
+        """Device list in a comparable form, used to detect hotplug."""
+        from app.camera import enumerate_cameras as _enumerate
+        return [(idx, label) for idx, label in _enumerate()]
+
+    def _watch_cameras(self) -> None:
+        """Re-check the device list so unplugged and replugged cameras appear.
+
+        The combo box is only rebuilt when the list actually changed, so an
+        user selection is never lost while the cameras stay the same.
+        """
+        try:
+            devices = self._camera_signature()
+        except Exception as exc:
+            logger.debug("Enumerazione camere fallita: %s", exc)
+            return
+        previous = list(self._last_camera_devices)
+        if devices == previous:
+            return
+        self._last_camera_devices = devices
+        current_index = self.combo_camera.currentData()
+        self.combo_camera.blockSignals(True)
+        self.combo_camera.clear()
+        for idx, label in devices:
+            self.combo_camera.addItem(label, idx)
+        if not devices:
+            self.combo_camera.addItem("Nessuna webcam rilevata", -1)
+        # keep the same camera if it is still there, otherwise take the first
+        restore = None
+        for row in range(self.combo_camera.count()):
+            if self.combo_camera.itemData(row) == current_index:
+                restore = row
+                break
+        if restore is None and devices:
+            restore = 0
+        if restore is not None:
+            self.combo_camera.setCurrentIndex(restore)
+        self.combo_camera.blockSignals(False)
+        if [d[0] for d in devices] != [d[0] for d in previous]:
+            labels = ", ".join(label for _, label in devices) or "nessuna"
+            self._show_status(f"Webcam rilevate: {labels}")
+            if restore is not None and current_index != devices[restore][0]:
+                self._init_camera()
 
     def _enumerate_cameras(self) -> None:
         from app.camera import enumerate_cameras as _enumerate
@@ -1350,6 +1410,7 @@ class MainWindow(QMainWindow):
             self._show_status(f"Foto salvata: {path}")
             self.status.showMessage(f"Foto salvata: {path}", 5000)
             self._add_recent_media(path)
+            self._last_media = path
         else:
             self._burst_index = 0
             self._burst_frames = [frame.copy() for _ in range(count)]
@@ -1390,14 +1451,50 @@ class MainWindow(QMainWindow):
     def _on_record_toggle(self) -> None:
         if self._recording:
             self._stop_recording()
-        else:
+            return
+        try:
             self._start_recording()
+        except _RecordingCancelled:
+            self._show_status("Registrazione annullata: spazio insufficiente")
+
+    def _free_space_warning(self) -> Optional[str]:
+        """Space needed is unknown, so warn conservatively.
+
+        A recording at 30 fps 640x480 is roughly 2 MB per minute, but the
+        chosen resolution can be much larger, so a fixed margin is used
+        instead of an estimate that could be wrong in either direction.
+        """
+        target = Storage.recordings_dir()
+        try:
+            free = shutil.disk_usage(target).free
+        except OSError as exc:
+            logger.debug("Impossibile leggere lo spazio libero: %s", exc)
+            return None
+        margin = 64 * 1024 * 1024
+        if free < margin:
+            return (f"Spazio libero su {target}: {free / 1024 / 1024:.0f} MB. "
+                    f"La registrazione potrebbe interrompersi prima della fine.")
+        return None
+
+    def _check_free_space_before_recording(self) -> None:
+        warning = self._free_space_warning()
+        if warning is None:
+            return
+        answer = QMessageBox.warning(
+            self,
+            "Spazio quasi esaurito",
+            warning + "\n\nRegistrare comunque?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            raise _RecordingCancelled()
 
     def _start_recording(self) -> None:
         frame = self._processed_frame if self._processed_frame is not None else self._current_frame
         if frame is None:
             self._show_status("Nessun frame disponibile per la registrazione", error=True)
             return
+        self._check_free_space_before_recording()
         if self._audio_enabled and shutil.which("ffmpeg") is None:
             QMessageBox.critical(
                 self,
@@ -1440,6 +1537,9 @@ class MainWindow(QMainWindow):
         self.combo_resolution.setEnabled(True)
         self.combo_format.setEnabled(True)
         self.lbl_rec.hide()
+        if path is not None:
+            self._last_media = path
+            self._add_recent_media(path)
         if hasattr(self, "_rec_timer") and self._rec_timer is not None:
             self._rec_timer.stop()
             self._rec_timer.deleteLater()
@@ -1920,47 +2020,49 @@ class MainWindow(QMainWindow):
                     return files[0]
         return None
 
-    def _share_to_telegram(self) -> None:
-        path = self._latest_media_path()
+    # ------------------------------------------------------------------
+    # Clipboard and file manager
+    # ------------------------------------------------------------------
+    def _last_media_path(self) -> Optional[Path]:
+        """The file the user last produced, used by copy and reveal."""
+        return getattr(self, "_last_media", None)
+
+    def _copy_last_media_to_clipboard(self) -> None:
+        """Copy the last photo to the system clipboard.
+
+        Only images can go to the clipboard, so a video is not copied: the
+        user is told and the folder is opened instead, which is what they
+        need anyway.
+        """
+        path = self._last_media_path()
         if path is None or not path.exists():
-            self._show_status("Nessun media recente da condividere", error=True)
+            self._show_status("Nessun file recente da copiare", error=True)
             return
-        try:
-            import urllib.parse
-            text = urllib.parse.quote(f"MintCam - {path.name}")
-            url = f"https://t.me/share/url?url={urllib.parse.quote(str(path.name))}&text={text}"
-            webbrowser.open(url)
-            self._show_status(f"Aperto Telegram per condividere: {path.name}")
-        except Exception as exc:
-            self._show_status(f"Errore condivisione Telegram: {exc}", error=True)
+        if path.suffix.lower() not in (".jpg", ".jpeg", ".png", ".bmp"):
+            self._show_status(
+                f"{path.name} è un video: apro la cartella per trascinarlo",
+                error=False)
+            self._reveal_last_media()
+            return
+        image = QImage(str(path))
+        if image.isNull():
+            self._show_status(f"Impossibile leggere {path.name}", error=True)
+            return
+        QGuiApplication.clipboard().setImage(image)
+        self._show_status(f"Foto copiata negli appunti: {path.name}")
 
-    def _share_to_discord(self) -> None:
-        path = self._latest_media_path()
+    def _reveal_last_media(self) -> None:
+        """Open the folder containing the last produced file."""
+        path = self._last_media_path()
         if path is None or not path.exists():
-            self._show_status("Nessun media recente da condividere", error=True)
+            self._show_status("Nessun file recente da mostrare", error=True)
             return
-        try:
-            url = "https://discord.com/channels/@me"
-            webbrowser.open(url)
-            self._show_status("Aperto Discord. Copia il file dalla cartella recenti.")
-        except Exception as exc:
-            self._show_status(f"Errore condivisione Discord: {exc}", error=True)
-
-    def _share_to_github(self) -> None:
-        try:
-            url = "https://github.com/jeaders/MintCam/releases/latest"
-            webbrowser.open(url)
-            self._show_status("Aperte release GitHub")
-        except Exception as exc:
-            self._show_status(f"Errore accesso GitHub: {exc}", error=True)
-
-    def _share_to_google_drive(self) -> None:
-        try:
-            url = "https://drive.google.com/drive/folders/my-drive"
-            webbrowser.open(url)
-            self._show_status("Aperto Google Drive")
-        except Exception as exc:
-            self._show_status(f"Errore accesso Google Drive: {exc}", error=True)
+        folder = path.parent
+        opened = QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+        if not opened:
+            self._show_status(f"Impossibile aprire {folder}", error=True)
+            return
+        self._show_status(f"Aperta la cartella di {path.name}")
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
 

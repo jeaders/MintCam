@@ -1,23 +1,23 @@
 Architectures: all
 Codename: stable
 Components: main
-Date: Mon, 12 Oct 2026 21:35:10 +0000
+Date: Mon, 12 Oct 2026 23:10:13 +0000
 Description: MintCam package repository
 Origin: MintCam
 Suite: stable
 MD5Sum:
- 7d2742efc41df408de9f9bf5153b612a              161 Release
- 7d5a148fe42a230b4de71f554bd0f06e              904 main/binary-all/Packages
- 50a9f5fc8f519c668727971094de47f9              614 main/binary-all/Packages.gz
+ 07dbeec5655dfee7658607a8c697e274              161 Release
+ acacc4420980bab52fb75b249017eae4              904 main/binary-all/Packages
+ a30f1c6d3981489a6a246cac7d51585e              612 main/binary-all/Packages.gz
 SHA1:
- aaa7ce1375311ceaa12253da4d4195208b441864              161 Release
- b9f7728ffd1c75b22d558a7fb3b9de4085f0086e              904 main/binary-all/Packages
- 6863041d0154113807cb3c1214a655bd0467ea8a              614 main/binary-all/Packages.gz
+ 77af5ff1a3fb3959feb068f003b117124b24ca20              161 Release
+ 0b11afba4fb2ac992469dcd96be2f885ccb02e6d              904 main/binary-all/Packages
+ 7c49a12fdf2dd90e616bd02c47c8a6b7f8fec130              612 main/binary-all/Packages.gz
 SHA256:
- 53972febc1fb811005e0b69fd4b1c79386b051b247b97191b20c5527156bc45b              161 Release
- d2b0e164317180dfc6a86f6811ee4af893f0587c2fffb07ecd4103a956bdf7b9              904 main/binary-all/Packages
- b4399d89b933ee352dd64fca6310d66bd5f65b05424d5738a98667665aae4fca              614 main/binary-all/Packages.gz
+ c76bdef52935ff0804a1c028500de0166366762fc8e34860af45f8f79d1c16f3              161 Release
+ cce969c82154c6bbb122193b3f2151d4665415ae255175d8550e8dcd325a09d9              904 main/binary-all/Packages
+ 33146eccafedaef455153356aa0b69de687792fb0dc2f31cf8c4e944efe404d2              612 main/binary-all/Packages.gz
 SHA512:
- 71f84040071dd86261fd75b4167e4ba29ad317fa38f525c4cad9dcba581689335bc8c1275df09982041919f4d744b57cae18b52084ef5244701b35bede7c4990              161 Release
- 118adafc2a4e467fa4abd82431ae93d780537808521b73679b9c7608ee457a62303b2a3a8c109e8d9276b0a67ed45950a47290f83ddd5e0b9e7f0a354e6ea259              904 main/binary-all/Packages
- c71804aed59d887a0ecbd3ae51400be404731f214fb3bfdc683e896e90a9dabd2a65c145d9f24dd26d2e7b4770ba3f9731b923b23878cf988adbf25da2421b9c              614 main/binary-all/Packages.gz
+ ef68e80daa4380c9ca58706c47e8c2a59f0758c29609eea837508f710da5e1bec272ec0757814dc4d7a58c958a502a05f12ac1a6ecccb44da49f96cc2beb2772              161 Release
+ 92127e65dcff3b3ec0e190ae5c275a48b189da542e2b33f6c1b8d81f994ce7db85af0af584adebc05d6cc8d4fbb950520eaf7a9e074b32c0c2a0fc302c78fe72              904 main/binary-all/Packages
+ 0b0538fb2d204bfa9c52acc0db1c11fded2b6db6f7fa1b52e85b789c4392bec7924d35b2ecf014ee923d3e79e9c49a9638ce4c19070def6d2b2a4f2caf7d424a              612 main/binary-all/Packages.gz

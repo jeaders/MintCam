@@ -123,6 +123,7 @@ class MainWindow(QMainWindow):
         self._presets: dict = {}
         self._face_failures: int = 0
         self._preview_failures: int = 0
+        self._last_recorded_frame: int = -1
         self._face_cascade: Optional[Path] = None
         self._last_camera_devices: list = list(self._camera_devices_initial())
         self._face_classifier_obj = None
@@ -158,7 +159,8 @@ class MainWindow(QMainWindow):
         root.setSpacing(0)
 
         bg = QFrame()
-        bg.setStyleSheet("background-color: #0f1115;")
+        bg.setObjectName("bg")
+        bg.setStyleSheet("QWidget#bg { background-color: #0f1115; }")
         bg_lay = QGridLayout(bg)
         bg_lay.setContentsMargins(16, 12, 16, 12)
         bg_lay.setSpacing(12)
@@ -192,13 +194,16 @@ class MainWindow(QMainWindow):
         bg_lay.addWidget(sidebar_scroll, 1, 1, 1, 1)
 
         preview_container = QWidget()
-        preview_container.setStyleSheet("background-color: #0f1115;")
+        preview_container.setObjectName("preview_container")
+        preview_container.setStyleSheet("QWidget#preview_container { background-color: #0f1115; }")
         preview_lay = QVBoxLayout(preview_container)
         preview_lay.setContentsMargins(0, 0, 0, 0)
         preview_lay.setSpacing(0)
 
         self.preview_container = QWidget()
-        self.preview_container.setStyleSheet("background-color: #0f1115;")
+        self.preview_container.setObjectName("preview_overlay")
+        self.preview_container.setStyleSheet(
+            "QWidget#preview_overlay { background-color: #0f1115; }")
         preview_container_lay = QGridLayout(self.preview_container)
         preview_container_lay.setContentsMargins(0, 0, 0, 0)
         preview_container_lay.setSpacing(0)
@@ -236,7 +241,8 @@ class MainWindow(QMainWindow):
 
     def _build_header(self) -> QWidget:
         header = QWidget()
-        header.setStyleSheet("background-color: #0f1115;")
+        header.setObjectName("header")
+        header.setStyleSheet("QWidget#header { background-color: #0f1115; }")
         lay = QHBoxLayout(header)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(16)
@@ -526,7 +532,9 @@ class MainWindow(QMainWindow):
     def _build_recent_strip(self) -> QWidget:
         strip = QWidget()
         strip.setFixedHeight(90)
-        strip.setStyleSheet("background-color: #0f1115; border-top: 1px solid #1e222b;")
+        strip.setObjectName("recent_strip")
+        strip.setStyleSheet(
+            "QWidget#recent_strip { background-color: #0f1115; border-top: 1px solid #1e222b; }")
         lay = QHBoxLayout(strip)
         lay.setContentsMargins(4, 6, 4, 6)
         lay.setSpacing(8)
@@ -619,7 +627,9 @@ class MainWindow(QMainWindow):
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
-        footer.setStyleSheet("background-color: #0f1115; border-top: 1px solid #1e222b;")
+        footer.setObjectName("footer")
+        footer.setStyleSheet(
+            "QWidget#footer { background-color: #0f1115; border-top: 1px solid #1e222b; }")
         lay = QHBoxLayout(footer)
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
@@ -662,6 +672,19 @@ class MainWindow(QMainWindow):
             "Apre la cartella dell'ultimo file salvato, selezionandolo")
         self.btn_reveal.clicked.connect(self._reveal_last_media)
 
+        self.btn_share = QPushButton("Condividi")
+        self.btn_share.setObjectName("ghost")
+        self.btn_share.setMinimumHeight(44)
+        self.btn_share.setToolTip(
+            "Prepara l'ultimo file per la condivisione: la foto la copia negli "
+            "appunti, il video apre la cartella da cui trascinarlo")
+        self.btn_share.clicked.connect(self._share_last_media)
+
+        self.btn_stream_footer = QPushButton("Avvia streaming")
+        self.btn_stream_footer.setObjectName("ghost")
+        self.btn_stream_footer.setMinimumHeight(44)
+        self.btn_stream_footer.clicked.connect(self._on_stream_toggle)
+
         self.btn_exit = QPushButton("Esci")
         self.btn_exit.setObjectName("ghost")
         self.btn_exit.setMinimumHeight(44)
@@ -672,7 +695,9 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.btn_folder)
         lay.addWidget(self.btn_fullscreen)
         lay.addWidget(self.btn_copy)
+        lay.addWidget(self.btn_share)
         lay.addWidget(self.btn_reveal)
+        lay.addWidget(self.btn_stream_footer)
         lay.addWidget(self.btn_exit)
         return footer
 
@@ -824,13 +849,25 @@ class MainWindow(QMainWindow):
 
     def _enumerate_cameras(self) -> None:
         from app.camera import enumerate_cameras as _enumerate
+        from app.camera import list_video_devices
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
         devices = _enumerate()
         for idx, label in devices:
             self.combo_camera.addItem(label, idx)
         if not devices:
-            self.combo_camera.addItem("Nessuna webcam rilevata", -1)
+            nodes = list_video_devices()
+            if nodes:
+                # La webcam esiste ma non si apre: quasi sempre è occupata da
+                # un'altra applicazione, e non va confusa con "assente".
+                self.combo_camera.addItem("Webcam occupata da un'altra app", -1)
+                self._show_status(
+                    "Webcam occupata da un'altra applicazione. Chiudila e "
+                    "attendi qualche secondo: il rilevamento riparte da solo.",
+                    error=True)
+            else:
+                self.combo_camera.addItem("Nessuna webcam rilevata", -1)
+                self._show_status("Nessuna webcam collegata", error=True)
         self.combo_camera.blockSignals(False)
 
     def _on_camera_changed(self, index: int) -> None:
@@ -1057,21 +1094,30 @@ class MainWindow(QMainWindow):
             if self._detect_motion(processed):
                 self._handle_motion_detected()
             self._check_inactivity()
-        if self._recording and self.recorder.is_recording():
-            rec_frame = processed.copy()
-            if rec_frame.ndim == 2:
-                rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_GRAY2BGR)
-            if rec_frame.shape[2] == 4:
-                rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_BGRA2BGR)
-            if self._recording_frame_size is not None:
-                th, tw = self._recording_frame_size
-                h, w = rec_frame.shape[:2]
-                if (w, h) != (tw, th):
-                    rec_frame = cv2.resize(rec_frame, (tw, th))
-            self.recorder.write(rec_frame)
-            if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
-                self._stop_recording()
-                self._show_status(f"Registrazione fermata dopo {self._clip_seconds}s")
+        if (self._recording and self.recorder.is_recording()
+                and getattr(self, "camera", None) is not None):
+            frame_number = self.camera.frame_count()
+            if frame_number != self._last_recorded_frame:
+                # Solo frame nuovi: il timer dell'anteprima può scattare più
+                # spesso di quanto la webcam produca, e riscrivere lo stesso
+                # frame farebbe avanzare il video più veloce del reale.
+                self._last_recorded_frame = frame_number
+                rec_frame = processed.copy()
+                if rec_frame.ndim == 2:
+                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_GRAY2BGR)
+                if rec_frame.shape[2] == 4:
+                    rec_frame = cv2.cvtColor(rec_frame, cv2.COLOR_BGRA2BGR)
+                if self._recording_frame_size is not None:
+                    th, tw = self._recording_frame_size
+                    h, w = rec_frame.shape[:2]
+                    if (w, h) != (tw, th):
+                        rec_frame = cv2.resize(rec_frame, (tw, th))
+                self.recorder.write(rec_frame)
+                if self._clip_seconds > 0 and self.recorder.elapsed() >= self._clip_seconds:
+                    self._stop_recording()
+                    self._show_status(
+                        f"Registrazione fermata dopo {self._clip_seconds}s")
+
         if self._streaming:
             stream_frame = processed.copy()
             if stream_frame.ndim == 2:
@@ -1388,6 +1434,33 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Photo / Timer / Flash
     # ------------------------------------------------------------------
+    def _share_last_media(self) -> None:
+        """Share the last photo or recording.
+
+        Photo: copied to the clipboard, so it can be pasted straight into
+        Telegram, Discord or anything else. Video: the clipboard cannot hold a
+        file, so the folder is opened and the user drags it. No web page is
+        opened pretending to share, and nothing is uploaded anywhere: the user
+        keeps control of what leaves the machine.
+        """
+        path = self._last_media_path()
+        if path is None or not path.exists():
+            self._show_status("Nessun file recente da condividere", error=True)
+            return
+        if path.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp"):
+            image = QImage(str(path))
+            if not image.isNull():
+                QGuiApplication.clipboard().setImage(image)
+                self._show_status(
+                    f"Foto copiata negli appunti: {path.name} "
+                    "(incollala in Telegram, Discord o dove vuoi)")
+                return
+            self._show_status(f"Impossibile leggere {path.name}", error=True)
+            return
+        self._reveal_last_media()
+        self._show_status(
+            f"{path.name} è un video: trascinalo dalla cartella aperta")
+
     def _on_photo(self) -> None:
         if self._timer_active:
             return
@@ -1530,11 +1603,19 @@ class MainWindow(QMainWindow):
             return
         self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
-        ok = self.recorder.start(frame, path, fps=self._fps, audio=self._audio_enabled)
+        # La fps misurata, non quella richiesta: se la webcam non arriva alla
+        # fps scelta, dichiarare quella scelta farebbe risultare il video
+        # velocizzato.
+        measured = self.camera.measured_fps() if self.camera is not None else None
+        record_fps = int(round(measured)) if measured else self._fps
+        logger.info("Registrazione: fps richiesti %d, misurati %s, uso %d",
+                    self._fps, measured, record_fps)
+        ok = self.recorder.start(frame, path, fps=record_fps, audio=self._audio_enabled)
         if not ok:
             self._show_status("Impossibile avviare la registrazione: codec non disponibile", error=True)
             return
         self._recording = True
+        self._last_recorded_frame = -1
         self.btn_record.setText("Ferma")
         self.btn_record.setObjectName("stop")
         self.btn_record.style().unpolish(self.btn_record)
@@ -1870,7 +1951,16 @@ class MainWindow(QMainWindow):
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             cascade = self._face_classifier()
             if cascade is None or cascade.empty():
-                logger.debug("Face framing: cascade non caricabile")
+                self._face_failures += 1
+                logger.debug("Cascade non caricabile (%d/%d)",
+                             self._face_failures, _FACE_FAILURE_LIMIT)
+                if self._face_failures >= _FACE_FAILURE_LIMIT:
+                    self._face_framing_enabled = False
+                    if getattr(self, "chk_face", None) is not None:
+                        self.chk_face.setChecked(False)
+                    self._show_status(
+                        "Inquadratura volto disattivata: impossibile caricare "
+                        "i dati del riconoscimento.", error=True)
                 return frame
             faces = cascade.detectMultiScale(
                 gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
@@ -2060,6 +2150,8 @@ class MainWindow(QMainWindow):
             except (BrokenPipeError, OSError):
                 self._streaming = False
                 self.btn_stream.setText("Avvia streaming")
+                if getattr(self, "btn_stream_footer", None) is not None:
+                    self.btn_stream_footer.setText("Avvia streaming")
                 self.btn_stream.setObjectName("ghost")
                 self.btn_stream.style().unpolish(self.btn_stream)
                 self.btn_stream.style().polish(self.btn_stream)

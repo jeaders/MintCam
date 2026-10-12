@@ -1,4 +1,5 @@
 import logging
+import time
 import os
 import shutil
 from typing import Optional
@@ -9,6 +10,9 @@ from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 # NOTE: tested with Logitech C920 and C270 on Mint 21. Using V4L2 backend
 logger = logging.getLogger("mintcam.camera")
+
+# Finestra usata per misurare la frequenza reale della webcam.
+_FPS_WINDOW_SECONDS = 3.0
 
 RESOLUTIONS = {
     "640x480": (640, 480),
@@ -29,11 +33,27 @@ def _get_device_name(index: int) -> str:
     return ""
 
 
-def enumerate_cameras() -> list[tuple[int, str]]:
+def list_video_devices() -> list[int]:
+    """The /dev/video* nodes that exist, whether or not they can be opened.
+
+    Used to tell "no webcam at all" apart from "the webcam is being used by
+    another application": the second case is temporary and the message has to
+    say so, otherwise the user thinks the camera is broken.
+    """
     import glob
-    devices: list[tuple[int, str]] = []
+    indices = []
     for path in sorted(glob.glob("/dev/video*")):
-        idx = int(path.replace("/dev/video", ""))
+        try:
+            indices.append(int(path.replace("/dev/video", "")))
+        except ValueError:
+            continue
+    return indices
+
+
+def enumerate_cameras() -> list[tuple[int, str]]:
+    """Webcams that can actually be opened right now."""
+    devices: list[tuple[int, str]] = []
+    for idx in list_video_devices():
         cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
         ok = cap.isOpened()
         if ok:
@@ -62,6 +82,8 @@ class CameraWorker(QThread):
         self._fps: int = 30
         self._last_frame: Optional[np.ndarray] = None
         self._max_frames: int = 0
+        self._frame_count: int = 0
+        self._frame_times: list = []
 
     def set_device(self, index: int, name: str = "") -> None:
         self._device_index = index
@@ -120,6 +142,13 @@ class CameraWorker(QThread):
                     self.msleep(30)
                     continue
                 self._last_frame = frame
+                self._frame_count += 1
+                self._frame_times.append(time.monotonic())
+                # finestra di tre secondi: il primo secondo dopo l'apertura
+                # della webcam è più lento e falserebbe la misura
+                cutoff = time.monotonic() - _FPS_WINDOW_SECONDS
+                while self._frame_times and self._frame_times[0] < cutoff:
+                    self._frame_times.pop(0)
                 self.frame_ready.emit(frame)
             except Exception as exc:
                 logger.error("Errore lettura frame: %s", exc)
@@ -138,4 +167,27 @@ class CameraWorker(QThread):
 
     def last_frame(self) -> Optional[np.ndarray]:
         return self._last_frame
+
+    def frame_count(self) -> int:
+        """Frames delivered since the camera was opened.
+
+        The recording uses it to write only real frames: the preview timer can
+        tick faster than the camera delivers, and writing the same frame again
+        makes the video play back faster than it was recorded.
+        """
+        return self._frame_count
+
+    def measured_fps(self) -> Optional[float]:
+        """Actual frame rate over the last second, or None if unknown.
+
+        The requested fps is only a request: a camera that cannot deliver it
+        runs slower, and the recording has to use the real number or the video
+        plays at the wrong speed.
+        """
+        if len(self._frame_times) < 2:
+            return None
+        span = self._frame_times[-1] - self._frame_times[0]
+        if span <= 0:
+            return None
+        return (len(self._frame_times) - 1) / span
 

@@ -1,17 +1,28 @@
-mintcam (0.4.0) noble; urgency=medium
+mintcam (0.5.0) noble; urgency=medium
 
-  * Show the audio level while recording with audio. ffmpeg already measures
-    it through the ebur128 filter and reports the numbers on stderr, so the
-    recorder now parses that output and draws a meter with the true peak in
-    dBFS: green while the level is sane, amber when it is close to silence and
-    red when it saturates. No additional dependency is needed, ffmpeg was
-    already required for the audio track.
-  * Fix a latent deadlock in the same path: the recorder piped ffmpeg stderr
-    and never read it. Once the pipe filled (64 KB) ffmpeg blocked and the
-    recording stalled in the middle. The stderr is now drained by a reader
-    thread, which is also what feeds the meter.
-  * Tests: 5 regression tests for the level parsing, covering the line
-    variants ffmpeg produces, silent input (-nan) and clipping values.
+  * Fix the photo button, whose text was invisible. The footer had a
+    stylesheet with bare declarations, and a background-color set that way
+    propagates to the child widgets and overrides the #primary rule: the button
+    kept a dark background while the text colour stayed dark, so "Scatta foto"
+    was drawn on a dark background. Every container stylesheet in the window is
+    now scoped to the widget it belongs to (QWidget#footer and friends), which
+    is what Qt expects.
+  * Fix the recording, which played back faster than it was recorded. The
+    recorder was written once per preview timer tick, so with an fps setting the
+    camera cannot reach (the default is 88) the same frame was written several
+    times and the video ran at about three times the real speed. Only new
+    frames are written now, and the declared frame rate is the one measured on
+    the camera instead of the requested one.
+  * Tell the difference between "no webcam" and "webcam busy". When another
+    application holds the camera the message used to say that no webcam was
+    detected, which is wrong and misleading: the camera was there and the user
+    was told the opposite.
+  * The face auto-framing now reports when the classifier cannot be loaded
+    instead of staying silent, and disables itself like the other failure
+    paths.
+  * Bring back the share and streaming buttons in the footer, which had been
+    dropped. Sharing copies the photo to the clipboard or opens the folder for
+    a video: no web page is opened pretending to share, and nothing is uploaded.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 22:50:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Tue, 13 Oct 2026 01:10:00 +0200
 

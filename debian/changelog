@@ -1,15 +1,16 @@
-mintcam (0.2.6) noble; urgency=medium
+mintcam (0.2.7) noble; urgency=medium
 
-  * Interface text: shorter and consistent labels. The record button reads
-    "Registra" / "Ferma" instead of "Avvia registrazione" / "Ferma
-    registrazione", the photo button reads "Scatta foto", and the streaming
-    button "Avvia streaming".
-  * Checkboxes are now in Italian throughout: "Scanner QR e codici a barre",
-    "Aiuto messa a fuoco", "Inquadratura sul volto", "Sfondo sfocato",
-    "Effetto specchio", "Time-lapse (foto in sequenza)". Several of them were
-    in English while the rest of the interface is Italian.
-  * The recording indicator reads "REC mm:ss" instead of "● REC mm:ss"; the
-    dot is drawn by the stylesheet, so it is not part of the text any more.
+  * The header logo now loads a PNG first. It used to look for the JPEG only,
+    and Qt needs a separate image format plugin for JPEG, which Debian keeps
+    in its own package: without it QPixmap could not decode the logo and the
+    header showed a placeholder glyph. PNG support is built into Qt.
+  * Remove the Flatpak packaging. It was submitted to Flathub, was never
+    accepted, and its manifest had drifted from the application: it still
+    installed PySide6 while the app now uses PyQt6, so anyone building it
+    would have gotten a broken application. No Flatpak of MintCam is
+    distributed anywhere.
+  * README: drop the Flatpak mentions from the changelog and say explicitly
+    that no Flatpak is distributed.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 20:20:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Mon, 12 Oct 2026 20:50:00 +0200
 

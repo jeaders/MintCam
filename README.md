@@ -210,8 +210,8 @@ The package will be created in `dist/`.
 
 ### 0.2.0
 
-- Renamed app ID to `io.github.jeaders.MintCam` for Flathub
-- Added LICENSE file and Flatpak packaging
+- Renamed the desktop and appdata ids to `mintcam` to match the `.desktop` file
+- Added the LICENSE file
 - Updated icon assets for all sizes
 - Fixed recording module (writer release sync in stop/__del)
 - Added PPA for Ubuntu Noble

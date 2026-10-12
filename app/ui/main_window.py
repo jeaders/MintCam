@@ -281,9 +281,14 @@ class MainWindow(QMainWindow):
         return header
 
     def _load_logo(self) -> QPixmap:
+        # PNG first: it is built into Qt, while JPEG needs an image format
+        # plugin that Debian keeps in a separate package and is not always
+        # installed, which used to leave the header with a placeholder glyph.
         candidates = [
+            Path("/usr/share/pixmaps/mintcam.png"),
+            Path(__file__).resolve().parent.parent.parent / "assets" / "mintcam.png",
+            Path("/usr/share/mintcam/assets/mintcam.png"),
             Path(__file__).resolve().parent.parent.parent / "assets" / "mintcam-logo.jpg",
-            Path("/usr/share/pixmaps/mintcam-logo.jpg"),
             Path("/usr/share/mintcam/assets/mintcam-logo.jpg"),
         ]
         for path in candidates:

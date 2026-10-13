@@ -1,28 +1,15 @@
-mintcam (0.5.0) noble; urgency=medium
+mintcam (0.7.0) noble; urgency=medium
 
-  * Fix the photo button, whose text was invisible. The footer had a
-    stylesheet with bare declarations, and a background-color set that way
-    propagates to the child widgets and overrides the #primary rule: the button
-    kept a dark background while the text colour stayed dark, so "Scatta foto"
-    was drawn on a dark background. Every container stylesheet in the window is
-    now scoped to the widget it belongs to (QWidget#footer and friends), which
-    is what Qt expects.
-  * Fix the recording, which played back faster than it was recorded. The
-    recorder was written once per preview timer tick, so with an fps setting the
-    camera cannot reach (the default is 88) the same frame was written several
-    times and the video ran at about three times the real speed. Only new
-    frames are written now, and the declared frame rate is the one measured on
-    the camera instead of the requested one.
-  * Tell the difference between "no webcam" and "webcam busy". When another
-    application holds the camera the message used to say that no webcam was
-    detected, which is wrong and misleading: the camera was there and the user
-    was told the opposite.
-  * The face auto-framing now reports when the classifier cannot be loaded
-    instead of staying silent, and disables itself like the other failure
-    paths.
-  * Bring back the share and streaming buttons in the footer, which had been
-    dropped. Sharing copies the photo to the clipboard or opens the folder for
-    a video: no web page is opened pretending to share, and nothing is uploaded.
+  * Language selection: Italian and English, pickable from the General card and
+    remembered between sessions. The interface was written in Italian and every
+    user-facing string is now translated through the Qt translation system, so
+    adding French, Spanish or German later only needs a new translation file
+    listed in app/i18n.py, with no change to the application code.
+  * The compiled translations ship in the package under
+    /usr/share/mintcam/i18n, and the source .ts files stay in the repository so
+    they can be edited with Qt Linguist and recompiled with lrelease.
+  * Focus assist and face auto-framing fixes from the previous release are
+    included; see 0.6.0.
 
- -- Alex Mirici <hilliedmikerano@gmail.com>  Tue, 13 Oct 2026 01:10:00 +0200
+ -- Alex Mirici <hilliedmikerano@gmail.com>  Tue, 13 Oct 2026 02:05:00 +0200
 

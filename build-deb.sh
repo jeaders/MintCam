@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="0.5.0"
+VERSION="0.7.0"
 PKG_NAME="mintcam_${VERSION}_all.deb"
 BUILD_DIR="${SCRIPT_DIR}/build-deb"
 DIST_DIR="${SCRIPT_DIR}/dist"
@@ -69,6 +69,10 @@ rsync -a \
   --exclude='*.log' \
   "${SCRIPT_DIR}/app" "${SCRIPT_DIR}/README.md" \
   "$BUILD_DIR/usr/share/mintcam/"
+
+# Traduzioni dell'interfaccia (file .qm compilati)
+install -d "$BUILD_DIR/usr/share/mintcam/i18n"
+install -m 0644 "${SCRIPT_DIR}"/i18n/*.qm "$BUILD_DIR/usr/share/mintcam/i18n/"
 
 # /usr/share/doc: copyright must be plain text (Policy 12.5), changelog compressed
 install -m 0644 "${SCRIPT_DIR}/debian/copyright" "$BUILD_DIR/usr/share/doc/mintcam/copyright"

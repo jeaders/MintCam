@@ -105,3 +105,52 @@ class AudioLevelParsingTest(unittest.TestCase):
                      "Stream #0:0: Audio: pcm_s16le, 48000 Hz, 2 channels",
                      "frame=  120 fps= 30 q=28.0 size=     256kB time=00:00:04"):
             self.assertIsNone(_LEVEL_PATTERN.search(line))
+
+
+class FocusAssistAdaptiveColourTest(unittest.TestCase):
+    """The focus indicator compares against the recent best, not a threshold.
+
+    A fixed threshold made the indicator red on every camera: the Laplacian
+    variance depends on the scene and the resolution, and a real webcam values
+    around 10 where the threshold was 80.
+    """
+
+    def _colour(self, score, best):
+        ratio = score / (best or 1.0)
+        if ratio >= 0.9:
+            return "#5cd962"
+        if ratio >= 0.6:
+            return "#f59e0b"
+        return "#ef4444"
+
+    def test_bright_scene_is_green_even_with_a_low_score(self):
+        # punteggio 11 su una webcam reale: con la soglia fissa era rosso
+        self.assertEqual(self._colour(11, 12), "#5cd962")
+
+    def test_blurred_frame_turns_red(self):
+        self.assertEqual(self._colour(1, 100), "#ef4444")
+
+    def test_slightly_blurred_is_amber(self):
+        self.assertEqual(self._colour(70, 100), "#f59e0b")
+
+
+class FaceFramingMinimumSizeTest(unittest.TestCase):
+    """The minimum face size is relative to the frame, not a fixed pixel count.
+
+    A fixed 60x60 minimum missed distant faces on small resolutions, which is
+    why the framing looked broken.
+    """
+
+    @staticmethod
+    def _min_size(height, width):
+        min_side = min(height, width)
+        return (max(24, int(min_side * 0.07)),) * 2
+
+    def test_small_frame_gets_a_smaller_minimum(self):
+        self.assertEqual(self._min_size(480, 640), (33, 33))
+
+    def test_large_frame_gets_a_larger_minimum(self):
+        self.assertEqual(self._min_size(1080, 1920), (75, 75))
+
+    def test_never_below_the_floor(self):
+        self.assertEqual(self._min_size(240, 320), (24, 24))

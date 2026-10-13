@@ -57,6 +57,9 @@ class _RecordingCancelled(Exception):
 # How often the device list is re-checked for hotplug.
 _CAMERA_WATCH_INTERVAL_MS = 5000
 
+# Quantità di punteggi di messa a fuoco conservati per il confronto.
+_FOCUS_HISTORY = 40
+
 _FACE_FAILURE_LIMIT = 5
 _PREVIEW_FAILURE_LIMIT = 10
 
@@ -69,7 +72,7 @@ _PREVIEW_FAILURE_LIMIT = 10
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("MintCam")
+        self.setWindowTitle(self.tr("MintCam"))
         self.resize(1200, 780)
         self.setMinimumSize(860, 620)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
@@ -124,6 +127,9 @@ class MainWindow(QMainWindow):
         self._face_failures: int = 0
         self._preview_failures: int = 0
         self._last_recorded_frame: int = -1
+        self._focus_scores: list = []
+        self._face_seen: bool = False
+        self._language: str = "it"
         self._face_cascade: Optional[Path] = None
         self._last_camera_devices: list = list(self._camera_devices_initial())
         self._face_classifier_obj = None
@@ -142,6 +148,12 @@ class MainWindow(QMainWindow):
 
         self._recent_media: list[Path] = []
         self._max_recent = 8
+
+        from app.i18n import install as _install_language
+        self._language = self.settings.get("language") or "it"
+        if self._language not in ("it", "en"):
+            self._language = "it"
+        _install_language(QApplication.instance(), self._language)
 
         self._init_ui()
         self._init_camera()
@@ -208,7 +220,7 @@ class MainWindow(QMainWindow):
         preview_container_lay.setContentsMargins(0, 0, 0, 0)
         preview_container_lay.setSpacing(0)
 
-        self.preview = QLabel("Anteprima non disponibile")
+        self.preview = QLabel(self.tr("Anteprima non disponibile"))
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumSize(640, 360)
         self.preview.setStyleSheet(
@@ -254,19 +266,19 @@ class MainWindow(QMainWindow):
             logo_pix = logo_pix.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(logo_pix)
         else:
-            logo_label.setText("📷")
+            logo_label.setText(self.tr("📷"))
         logo_label.setStyleSheet("font-size: 22px; padding: 4px; border-radius: 8px;")
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("MintCam")
+        title = QLabel(self.tr("MintCam"))
         title.setStyleSheet("font-size: 20px; font-weight: 800; color: #5cd962; letter-spacing: -0.3px;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.lbl_status = QLabel("Inizializzazione webcam…")
+        self.lbl_status = QLabel(self.tr("Inizializzazione webcam…"))
         self.lbl_status.setStyleSheet("color: #9aa0ac; font-size: 12px;")
-        self.lbl_info = QLabel("")
+        self.lbl_info = QLabel(self.tr(""))
         self.lbl_info.setStyleSheet("color: #6b7280; font-size: 12px;")
-        self.lbl_fps = QLabel("")
+        self.lbl_fps = QLabel(self.tr(""))
         self.lbl_fps.setStyleSheet("color: #6b7280; font-size: 11px;")
 
         center_widget = QWidget()
@@ -305,7 +317,7 @@ class MainWindow(QMainWindow):
         return QPixmap()
 
     def _build_card_camera(self) -> QGroupBox:
-        grp = QGroupBox("Fotocamera")
+        grp = QGroupBox(self.tr("Fotocamera"))
         grp.setObjectName("sidebar-card")
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
@@ -315,7 +327,7 @@ class MainWindow(QMainWindow):
         return grp
 
     def _build_card_resolution(self) -> QGroupBox:
-        grp = QGroupBox("Risoluzione e FPS")
+        grp = QGroupBox(self.tr("Risoluzione e FPS"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_resolution = QComboBox()
@@ -323,41 +335,41 @@ class MainWindow(QMainWindow):
         self.combo_fps = QSpinBox()
         self.combo_fps.setRange(1, 120)
         self.combo_fps.setValue(30)
-        lay.addWidget(QLabel("Risoluzione:"))
+        lay.addWidget(QLabel(self.tr("Risoluzione:")))
         lay.addWidget(self.combo_resolution)
-        lay.addWidget(QLabel("FPS:"))
+        lay.addWidget(QLabel(self.tr("FPS:")))
         lay.addWidget(self.combo_fps)
         return grp
 
     def _build_card_filter(self) -> QGroupBox:
-        grp = QGroupBox("Filtro")
+        grp = QGroupBox(self.tr("Filtro"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_filter = QComboBox()
-        self.combo_filter.addItems(["Normale", "Bianco e nero", "Sepia", "Negativo", "Contrasto elevato"])
+        self.combo_filter.addItems([self.tr("Normale"), self.tr("Bianco e nero"), self.tr("Sepia"), self.tr("Negativo"), self.tr("Contrasto elevato")])
         lay.addWidget(self.combo_filter)
         return grp
 
     def _build_card_format(self) -> QGroupBox:
-        grp = QGroupBox("Formato")
+        grp = QGroupBox(self.tr("Formato"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_format = QComboBox()
-        self.combo_format.addItems(["16:9", "4:3", "9:16"])
+        self.combo_format.addItems([self.tr("16:9"), self.tr("4:3"), self.tr("9:16")])
         lay.addWidget(self.combo_format)
         return grp
 
     def _build_card_timer(self) -> QGroupBox:
-        grp = QGroupBox("Timer foto")
+        grp = QGroupBox(self.tr("Timer foto"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
         self.combo_timer = QComboBox()
-        self.combo_timer.addItems(["Nessun timer", "3 secondi", "5 secondi", "10 secondi"])
+        self.combo_timer.addItems([self.tr("Nessun timer"), self.tr("3 secondi"), self.tr("5 secondi"), self.tr("10 secondi")])
         lay.addWidget(self.combo_timer)
         return grp
 
     def _build_card_adjustments(self) -> QGroupBox:
-        grp = QGroupBox("Regolazioni")
+        grp = QGroupBox(self.tr("Regolazioni"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(10)
         self.slider_brightness = self._make_slider(-100, 100, 0, "Luminosità")
@@ -372,41 +384,41 @@ class MainWindow(QMainWindow):
         return grp
 
     def _build_card_tools(self) -> QGroupBox:
-        grp = QGroupBox("Strumenti")
+        grp = QGroupBox(self.tr("Strumenti"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
-        self.chk_mirror = QCheckBox("Effetto specchio")
+        self.chk_mirror = QCheckBox(self.tr("Effetto specchio"))
         self.chk_mirror.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_mirror.toggled.connect(self._on_mirror_changed)
         lay.addWidget(self.chk_mirror)
-        self.chk_grid = QCheckBox("Griglia")
+        self.chk_grid = QCheckBox(self.tr("Griglia"))
         self.chk_grid.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_grid.toggled.connect(self._on_grid_changed)
         lay.addWidget(self.chk_grid)
-        self.chk_pause = QCheckBox("Pausa anteprima")
+        self.chk_pause = QCheckBox(self.tr("Pausa anteprima"))
         self.chk_pause.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_pause.toggled.connect(self._on_pause_changed)
         lay.addWidget(self.chk_pause)
-        self.chk_qr = QCheckBox("Scanner QR e codici a barre")
+        self.chk_qr = QCheckBox(self.tr("Scanner QR e codici a barre"))
         self.chk_qr.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_qr.setEnabled(_QR_AVAILABLE)
         self.chk_qr.toggled.connect(self._on_qr_changed)
         lay.addWidget(self.chk_qr)
-        self.chk_focus = QCheckBox("Aiuto messa a fuoco")
+        self.chk_focus = QCheckBox(self.tr("Aiuto messa a fuoco"))
         self.chk_focus.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_focus.toggled.connect(self._on_focus_changed)
         lay.addWidget(self.chk_focus)
-        self.chk_face = QCheckBox("Inquadratura sul volto")
+        self.chk_face = QCheckBox(self.tr("Inquadratura sul volto"))
         self.chk_face.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_face.toggled.connect(self._on_face_changed)
         lay.addWidget(self.chk_face)
 
-        self.chk_audio = QCheckBox("Audio durante registrazione")
+        self.chk_audio = QCheckBox(self.tr("Audio durante registrazione"))
         self.chk_audio.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_audio.toggled.connect(self._on_audio_changed)
         lay.addWidget(self.chk_audio)
 
-        self.chk_blur_bg = QCheckBox("Sfondo sfocato")
+        self.chk_blur_bg = QCheckBox(self.tr("Sfondo sfocato"))
         self.chk_blur_bg.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_blur_bg.toggled.connect(self._on_blur_bg_changed)
         lay.addWidget(self.chk_blur_bg)
@@ -416,7 +428,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.slider_blur["label"])
         lay.addWidget(self.slider_blur["slider"])
 
-        self.chk_motion = QCheckBox("Rilevamento movimento")
+        self.chk_motion = QCheckBox(self.tr("Rilevamento movimento"))
         self.chk_motion.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_motion.toggled.connect(self._on_motion_changed)
         lay.addWidget(self.chk_motion)
@@ -425,7 +437,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.slider_motion["slider"])
 
         # Preset manager
-        self.lbl_preset_title = QLabel("Preset")
+        self.lbl_preset_title = QLabel(self.tr("Preset"))
         self.lbl_preset_title.setStyleSheet("color: #5cd962; font-size: 11px; font-weight: 700;")
         lay.addWidget(self.lbl_preset_title)
         self.combo_preset = QComboBox()
@@ -433,15 +445,15 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.combo_preset)
         preset_btns = QHBoxLayout()
         preset_btns.setSpacing(6)
-        self.btn_save_preset = QPushButton("Salva")
+        self.btn_save_preset = QPushButton(self.tr("Salva"))
         self.btn_save_preset.setObjectName("ghost")
         self.btn_save_preset.setMinimumHeight(28)
         self.btn_save_preset.clicked.connect(self._save_preset)
-        self.btn_load_preset = QPushButton("Carica")
+        self.btn_load_preset = QPushButton(self.tr("Carica"))
         self.btn_load_preset.setObjectName("ghost")
         self.btn_load_preset.setMinimumHeight(28)
         self.btn_load_preset.clicked.connect(self._load_preset)
-        self.btn_delete_preset = QPushButton("Elimina")
+        self.btn_delete_preset = QPushButton(self.tr("Elimina"))
         self.btn_delete_preset.setObjectName("ghost")
         self.btn_delete_preset.setMinimumHeight(28)
         self.btn_delete_preset.clicked.connect(self._delete_preset)
@@ -461,14 +473,14 @@ class MainWindow(QMainWindow):
         self.txt_stream_url.setStyleSheet(
             "background-color: #1e222b; color: #e6e9ef; border: 1px solid #2c333f; border-radius: 8px; padding: 6px 10px;"
         )
-        lay.addWidget(QLabel("URL stream RTMP:"))
+        lay.addWidget(QLabel(self.tr("URL stream RTMP:")))
         lay.addWidget(self.txt_stream_url)
-        self.btn_stream = QPushButton("Avvia streaming")
+        self.btn_stream = QPushButton(self.tr("Avvia streaming"))
         self.btn_stream.setObjectName("ghost")
         self.btn_stream.setMinimumHeight(32)
         self.btn_stream.clicked.connect(self._on_stream_toggle)
         lay.addWidget(self.btn_stream)
-        self.chk_timelapse = QCheckBox("Time-lapse (foto in sequenza)")
+        self.chk_timelapse = QCheckBox(self.tr("Time-lapse (foto in sequenza)"))
         self.chk_timelapse.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_timelapse.toggled.connect(self._on_timelapse_changed)
         lay.addWidget(self.chk_timelapse)
@@ -477,42 +489,58 @@ class MainWindow(QMainWindow):
         self.spin_timelapse_interval.setSuffix(" s")
         self.spin_timelapse_interval.setValue(1)
         self.spin_timelapse_interval.valueChanged.connect(self._on_timelapse_interval_changed)
-        lay.addWidget(QLabel("Intervallo time-lapse:"))
+        lay.addWidget(QLabel(self.tr("Intervallo time-lapse:")))
         lay.addWidget(self.spin_timelapse_interval)
         self.combo_burst = QComboBox()
-        self.combo_burst.addItems(["Singolo", "Burst 3", "Burst 5", "Burst 10"])
+        self.combo_burst.addItems([self.tr("Singolo"), self.tr("Burst 3"), self.tr("Burst 5"), self.tr("Burst 10")])
         self.combo_burst.currentIndexChanged.connect(self._on_burst_changed)
-        lay.addWidget(QLabel("Modalità scatto:"))
+        lay.addWidget(QLabel(self.tr("Modalità scatto:")))
         lay.addWidget(self.combo_burst)
         self.spin_clip = QSpinBox()
         self.spin_clip.setRange(0, 3600)
         self.spin_clip.setSpecialValueText("Illimitato")
         self.spin_clip.setValue(0)
         self.spin_clip.valueChanged.connect(self._on_clip_changed)
-        lay.addWidget(QLabel("Durata max registrazione (s):"))
+        lay.addWidget(QLabel(self.tr("Durata max registrazione (s):")))
         lay.addWidget(self.spin_clip)
         self.spin_quality = QSpinBox()
         self.spin_quality.setRange(50, 100)
         self.spin_quality.setValue(95)
         self.spin_quality.valueChanged.connect(self._on_quality_changed)
-        lay.addWidget(QLabel("Qualità foto:"))
+        lay.addWidget(QLabel(self.tr("Qualità foto:")))
         lay.addWidget(self.spin_quality)
         self.combo_folder = QComboBox()
-        self.combo_folder.addItems(["Foto", "Registrazioni"])
+        self.combo_folder.addItems([self.tr("Foto"), self.tr("Registrazioni")])
         self.combo_folder.currentIndexChanged.connect(self._on_folder_changed)
-        lay.addWidget(QLabel("Cartella apertura:"))
+        lay.addWidget(QLabel(self.tr("Cartella apertura:")))
         lay.addWidget(self.combo_folder)
-        btn_reset_adj = QPushButton("Reset regolazioni")
+        btn_reset_adj = QPushButton(self.tr("Reset regolazioni"))
         btn_reset_adj.setObjectName("ghost")
         btn_reset_adj.clicked.connect(self._reset_adjustments)
         lay.addWidget(btn_reset_adj)
         return grp
 
     def _build_card_general(self) -> QGroupBox:
-        grp = QGroupBox("Generale")
+        grp = QGroupBox(self.tr("Generale"))
         lay = QVBoxLayout(grp)
         lay.setSpacing(8)
-        self.chk_autostart = QCheckBox("Avvio automatico con il sistema")
+        from app.i18n import available as _available_languages
+        lay.addWidget(QLabel(self.tr("Lingua:")))
+        self.combo_language = QComboBox()
+        self.combo_language.setMinimumHeight(32)
+        for _code, _name in _available_languages():
+            self.combo_language.addItem(_name, _code)
+        lay.addWidget(self.combo_language)
+        # preseleziona la lingua attiva: senza, il selettore mostra la prima
+        # della lista e l'utente non sa quale è in uso
+        _current = self.combo_language.findData(self._language)
+        self.combo_language.blockSignals(True)
+        if _current >= 0:
+            self.combo_language.setCurrentIndex(_current)
+        self.combo_language.blockSignals(False)
+        self.combo_language.currentIndexChanged.connect(self._on_language_changed)
+
+        self.chk_autostart = QCheckBox(self.tr("Avvio automatico con il sistema"))
         self.chk_autostart.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_autostart.toggled.connect(self._on_autostart_changed)
         lay.addWidget(self.chk_autostart)
@@ -538,7 +566,7 @@ class MainWindow(QMainWindow):
         lay = QHBoxLayout(strip)
         lay.setContentsMargins(4, 6, 4, 6)
         lay.setSpacing(8)
-        lbl = QLabel("Recenti")
+        lbl = QLabel(self.tr("Recenti"))
         lbl.setStyleSheet("color: #6b7280; font-size: 11px; font-weight: 700;")
         lay.addWidget(lbl)
         self._recent_labels: list[QLabel] = []
@@ -547,7 +575,7 @@ class MainWindow(QMainWindow):
             thumb.setFixedSize(72, 54)
             thumb.setStyleSheet("background-color: #1e222b; border-radius: 8px; border: 1px solid #252a35;")
             thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            thumb.setToolTip("")
+            thumb.setToolTip(self.tr(""))
             lay.addWidget(thumb)
             self._recent_labels.append(thumb)
         lay.addStretch()
@@ -598,7 +626,7 @@ class MainWindow(QMainWindow):
             "background-color: rgba(17, 19, 25, 0.85); color: #5cd962;"
             "font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;"
         )
-        self.lbl_level.setText("Livello audio")
+        self.lbl_level.setText(self.tr("Livello audio"))
         self.lbl_level.hide()
         self.lbl_level.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.lbl_level.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -634,29 +662,29 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 12, 16, 12)
         lay.setSpacing(10)
 
-        self.btn_photo = QPushButton("Scatta foto")
+        self.btn_photo = QPushButton(self.tr("Scatta foto"))
         self.btn_photo.setObjectName("primary")
         self.btn_photo.setMinimumHeight(44)
         self.btn_photo.clicked.connect(self._on_photo)
 
-        self.btn_record = QPushButton("Registra")
+        self.btn_record = QPushButton(self.tr("Registra"))
         self.btn_record.setObjectName("record")
         self.btn_record.setMinimumHeight(44)
         self.btn_record.clicked.connect(self._on_record_toggle)
 
-        self.btn_folder = QPushButton("Apri cartella")
+        self.btn_folder = QPushButton(self.tr("Apri cartella"))
         self.btn_folder.setObjectName("ghost")
         self.btn_folder.setMinimumHeight(44)
         self.btn_folder.clicked.connect(self._on_open_folder)
 
-        self.btn_fullscreen = QPushButton("Schermo intero")
+        self.btn_fullscreen = QPushButton(self.tr("Schermo intero"))
         self.btn_fullscreen.setObjectName("ghost")
         self.btn_fullscreen.setMinimumHeight(44)
         self.btn_fullscreen.clicked.connect(self._toggle_fullscreen)
 
         # Clipboard copy: the photo goes straight into the system clipboard,
         # so it can be pasted into Telegram, Discord, GIMP or anything else.
-        self.btn_copy = QPushButton("Copia scatto")
+        self.btn_copy = QPushButton(self.tr("Copia scatto"))
         self.btn_copy.setObjectName("ghost")
         self.btn_copy.setMinimumHeight(44)
         self.btn_copy.setToolTip(
@@ -665,14 +693,14 @@ class MainWindow(QMainWindow):
         self.btn_copy.clicked.connect(self._copy_last_media_to_clipboard)
 
         # Reveal: opens the folder of the last photo or recording selected
-        self.btn_reveal = QPushButton("Mostra file")
+        self.btn_reveal = QPushButton(self.tr("Mostra file"))
         self.btn_reveal.setObjectName("ghost")
         self.btn_reveal.setMinimumHeight(44)
         self.btn_reveal.setToolTip(
             "Apre la cartella dell'ultimo file salvato, selezionandolo")
         self.btn_reveal.clicked.connect(self._reveal_last_media)
 
-        self.btn_share = QPushButton("Condividi")
+        self.btn_share = QPushButton(self.tr("Condividi"))
         self.btn_share.setObjectName("ghost")
         self.btn_share.setMinimumHeight(44)
         self.btn_share.setToolTip(
@@ -680,12 +708,12 @@ class MainWindow(QMainWindow):
             "appunti, il video apre la cartella da cui trascinarlo")
         self.btn_share.clicked.connect(self._share_last_media)
 
-        self.btn_stream_footer = QPushButton("Avvia streaming")
+        self.btn_stream_footer = QPushButton(self.tr("Avvia streaming"))
         self.btn_stream_footer.setObjectName("ghost")
         self.btn_stream_footer.setMinimumHeight(44)
         self.btn_stream_footer.clicked.connect(self._on_stream_toggle)
 
-        self.btn_exit = QPushButton("Esci")
+        self.btn_exit = QPushButton(self.tr("Esci"))
         self.btn_exit.setObjectName("ghost")
         self.btn_exit.setMinimumHeight(44)
         self.btn_exit.clicked.connect(self.close)
@@ -867,13 +895,13 @@ class MainWindow(QMainWindow):
                     error=True)
             else:
                 self.combo_camera.addItem("Nessuna webcam rilevata", -1)
-                self._show_status("Nessuna webcam collegata", error=True)
+                self._show_status(self.tr("Nessuna webcam collegata"), error=True)
         self.combo_camera.blockSignals(False)
 
     def _on_camera_changed(self, index: int) -> None:
         idx = self.combo_camera.currentData()
         if idx is None or idx == -1:
-            self._show_status("Webcam non disponibile", error=True)
+            self._show_status(self.tr("Webcam non disponibile"), error=True)
             return
         self.settings.set("camera_index", idx)
         if self.camera is not None:
@@ -970,7 +998,7 @@ class MainWindow(QMainWindow):
         self.settings.set("brightness", 0)
         self.settings.set("contrast", 0)
         self.settings.set("saturation", 0)
-        self._show_status("Regolazioni reset")
+        self._show_status(self.tr("Regolazioni reset"))
 
     def _on_qr_changed(self, checked: bool) -> None:
         self._qr_enabled = checked
@@ -983,27 +1011,28 @@ class MainWindow(QMainWindow):
             if hasattr(self, "lbl_qr"):
                 self.lbl_qr.show()
                 self.lbl_qr.raise_()
-        self._show_status("QR/Barcode " + ("attivo" if checked else "disattivato"))
+        self._show_status(self.tr("QR/Barcode ") + ("attivo" if checked else "disattivato"))
 
     def _on_focus_changed(self, checked: bool) -> None:
         self._focus_assist_enabled = checked
+        self._focus_scores = []
         self.settings.set("focus_assist", checked)
-        self._show_status("Focus assist " + ("attivo" if checked else "disattivato"))
+        self._show_status(self.tr("Focus assist ") + ("attivo" if checked else "disattivato"))
 
     def _on_face_changed(self, checked: bool) -> None:
         self._face_framing_enabled = checked
         self.settings.set("face_framing", checked)
-        self._show_status("Face framing " + ("attivo" if checked else "disattivato"))
+        self._show_status(self.tr("Face framing ") + ("attivo" if checked else "disattivato"))
 
     def _on_audio_changed(self, checked: bool) -> None:
         self._audio_enabled = checked
         self.settings.set("audio_enabled", checked)
-        self._show_status("Audio registrazione " + ("attivo" if checked else "disattivato"))
+        self._show_status(self.tr("Audio registrazione ") + ("attivo" if checked else "disattivato"))
 
     def _on_blur_bg_changed(self, checked: bool) -> None:
         self._background_blur = checked
         self.settings.set("background_blur", checked)
-        self._show_status("Sfoca sfondo " + ("attivo" if checked else "disattivato"))
+        self._show_status(self.tr("Sfoca sfondo ") + ("attivo" if checked else "disattivato"))
 
     def _on_blur_strength_changed(self, value: int) -> None:
         self._blur_strength = value
@@ -1015,13 +1044,13 @@ class MainWindow(QMainWindow):
         if checked:
             self._motion_reference = None
             self._motion_last_detected = time.time()
-            self._show_status("Rilevamento movimento attivo")
+            self._show_status(self.tr("Rilevamento movimento attivo"))
         else:
             self._motion_reference = None
             if self._motion_inactive_timer is not None:
                 self._motion_inactive_timer.stop()
                 self._motion_inactive_timer = None
-            self._show_status("Rilevamento movimento disattivato")
+            self._show_status(self.tr("Rilevamento movimento disattivato"))
 
     def _on_motion_sensitivity_changed(self, value: int) -> None:
         self._motion_sensitivity = value
@@ -1043,7 +1072,7 @@ class MainWindow(QMainWindow):
                 self._timelapse_timer = None
             if len(self._timelapse_frames) > 1:
                 self._assemble_timelapse()
-        self._show_status("Time-lapse " + ("avviato" if checked else "fermo"))
+        self._show_status(self.tr("Time-lapse ") + ("avviato" if checked else "fermo"))
 
     def _on_timelapse_interval_changed(self, value: int) -> None:
         self._timelapse_interval = value
@@ -1136,13 +1165,28 @@ class MainWindow(QMainWindow):
             self.lbl_qr.hide()
         if getattr(self, "_focus_assist_enabled", False):
             score = self._compute_focus_score(processed)
-            color = "#ef4444" if score < 80 else "#f59e0b" if score < 180 else "#5cd962"
+            # Il punteggio dipende dalla scena e dalla risoluzione: confrontarlo
+            # con una soglia fissa dava sempre rosso. Si misura quindi contro il
+            # meglio ottenuto negli ultimi secondi, così verde vuol dire
+            # "sei a fuoco" su qualsiasi webcam.
+            self._focus_scores.append(score)
+            if len(self._focus_scores) > _FOCUS_HISTORY:
+                self._focus_scores.pop(0)
+            best = max(self._focus_scores) or 1.0
+            ratio = score / best
+            if ratio >= 0.9:
+                color = "#5cd962"
+            elif ratio >= 0.6:
+                color = "#f59e0b"
+            else:
+                color = "#ef4444"
             self.lbl_focus.setStyleSheet(
                 f"border-radius: 12px; border: 3px solid {color}; background-color: {color};"
             )
             self.lbl_focus.show()
             self.lbl_focus.raise_()
-            self.lbl_status.setText(f"Focus score: {score:.1f}")
+            self.lbl_status.setText(
+                f"Messa a fuoco: {score:.0f} (migliore {best:.0f})")
         else:
             self.lbl_focus.hide()
         rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
@@ -1303,7 +1347,7 @@ class MainWindow(QMainWindow):
         elapsed = time.time() - self._motion_last_detected
         if elapsed >= 10.0:
             self._stop_recording()
-            self._show_status("Registrazione ferma: nessun movimento")
+            self._show_status(self.tr("Registrazione ferma: nessun movimento"))
 
     # ------------------------------------------------------------------
     # Preset manager
@@ -1349,7 +1393,7 @@ class MainWindow(QMainWindow):
     def _load_preset(self) -> None:
         key = self.combo_preset.currentData()
         if key == "<default>":
-            self._show_status("Preset predefinito caricato")
+            self._show_status(self.tr("Preset predefinito caricato"))
             return
         presets = self._presets
         if key not in presets:
@@ -1380,10 +1424,10 @@ class MainWindow(QMainWindow):
     def _delete_preset(self) -> None:
         key = self.combo_preset.currentData()
         if key == "<default>":
-            self._show_status("Impossibile eliminare il preset predefinito", error=True)
+            self._show_status(self.tr("Impossibile eliminare il preset predefinito"), error=True)
             return
         if key not in self._presets:
-            self._show_status("Nessun preset da eliminare", error=True)
+            self._show_status(self.tr("Nessun preset da eliminare"), error=True)
             return
         self.settings.delete_preset(key)
         self._refresh_presets()
@@ -1445,7 +1489,7 @@ class MainWindow(QMainWindow):
         """
         path = self._last_media_path()
         if path is None or not path.exists():
-            self._show_status("Nessun file recente da condividere", error=True)
+            self._show_status(self.tr("Nessun file recente da condividere"), error=True)
             return
         if path.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp"):
             image = QImage(str(path))
@@ -1494,14 +1538,14 @@ class MainWindow(QMainWindow):
     def _take_photo(self) -> None:
         frame = self._processed_frame if self._processed_frame is not None else self._current_frame
         if frame is None:
-            self._show_status("Nessun frame disponibile per la foto", error=True)
+            self._show_status(self.tr("Nessun frame disponibile per la foto"), error=True)
             return
         self._flash_effect()
         count = self._burst_count
         if count <= 1:
             path = Storage.save_photo(frame, quality=self._photo_quality)
             if path is None:
-                self._show_status("Errore salvataggio foto", error=True)
+                self._show_status(self.tr("Errore salvataggio foto"), error=True)
                 return
             self._show_status(f"Foto salvata: {path}")
             self.status.showMessage(f"Foto salvata: {path}", 5000)
@@ -1551,7 +1595,7 @@ class MainWindow(QMainWindow):
         try:
             self._start_recording()
         except _RecordingCancelled:
-            self._show_status("Registrazione annullata: spazio insufficiente")
+            self._show_status(self.tr("Registrazione annullata: spazio insufficiente"))
 
     def _free_space_warning(self) -> Optional[str]:
         """Space needed is unknown, so warn conservatively.
@@ -1578,7 +1622,7 @@ class MainWindow(QMainWindow):
             return
         answer = QMessageBox.warning(
             self,
-            "Spazio quasi esaurito",
+            self.tr("Spazio quasi esaurito"),
             warning + "\n\nRegistrare comunque?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -1588,18 +1632,18 @@ class MainWindow(QMainWindow):
     def _start_recording(self) -> None:
         frame = self._processed_frame if self._processed_frame is not None else self._current_frame
         if frame is None:
-            self._show_status("Nessun frame disponibile per la registrazione", error=True)
+            self._show_status(self.tr("Nessun frame disponibile per la registrazione"), error=True)
             return
         self._check_free_space_before_recording()
         if self._audio_enabled and shutil.which("ffmpeg") is None:
             QMessageBox.critical(
                 self,
-                "ffmpeg non trovato",
+                self.tr("ffmpeg non trovato"),
                 "La registrazione con audio richiede ffmpeg, che non è installato.\n\n"
                 "Installa il pacchetto ffmpeg (sudo apt install ffmpeg) oppure "
                 "disattiva l'audio per registrare solo il video.",
             )
-            self._show_status("Registrazione con audio annullata: ffmpeg mancante", error=True)
+            self._show_status(self.tr("Registrazione con audio annullata: ffmpeg mancante"), error=True)
             return
         self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
@@ -1612,11 +1656,11 @@ class MainWindow(QMainWindow):
                     self._fps, measured, record_fps)
         ok = self.recorder.start(frame, path, fps=record_fps, audio=self._audio_enabled)
         if not ok:
-            self._show_status("Impossibile avviare la registrazione: codec non disponibile", error=True)
+            self._show_status(self.tr("Impossibile avviare la registrazione: codec non disponibile"), error=True)
             return
         self._recording = True
         self._last_recorded_frame = -1
-        self.btn_record.setText("Ferma")
+        self.btn_record.setText(self.tr("Ferma"))
         self.btn_record.setObjectName("stop")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
@@ -1624,19 +1668,19 @@ class MainWindow(QMainWindow):
         self.combo_format.setEnabled(False)
         self.lbl_rec.show()
         self.lbl_rec.raise_()
-        self.lbl_rec.setText("REC")
+        self.lbl_rec.setText(self.tr("REC"))
         if self._audio_enabled:
             self._update_level_meter()
         self._rec_timer = QTimer(self)
         self._rec_timer.setInterval(500)
         self._rec_timer.timeout.connect(self._update_rec_time)
         self._rec_timer.start()
-        self._show_status("Registrazione avviata")
+        self._show_status(self.tr("Registrazione avviata"))
 
     def _stop_recording(self) -> None:
         path = self.recorder.stop()
         self._recording = False
-        self.btn_record.setText("Registra")
+        self.btn_record.setText(self.tr("Registra"))
         self.btn_record.setObjectName("record")
         self.btn_record.style().unpolish(self.btn_record)
         self.btn_record.style().polish(self.btn_record)
@@ -1657,7 +1701,7 @@ class MainWindow(QMainWindow):
             self.status.showMessage(f"Registrazione salvata: {path}", 5000)
             self._add_recent_media(path)
         else:
-            self._show_status("Registrazione interrotta senza salvataggio", error=True)
+            self._show_status(self.tr("Registrazione interrotta senza salvataggio"), error=True)
 
     def _update_rec_time(self) -> None:
         elapsed = self.recorder.elapsed()
@@ -1674,7 +1718,7 @@ class MainWindow(QMainWindow):
         levels = self.recorder.audio_level()
         peak = levels.get("peak")
         if peak is None:
-            self.lbl_level.setText("Livello audio —")
+            self.lbl_level.setText(self.tr("Livello audio —"))
             self.lbl_level.setStyleSheet(
                 "background-color: rgba(17, 19, 25, 0.85); color: #9aa0ac;"
                 "font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 10px;")
@@ -1728,7 +1772,7 @@ class MainWindow(QMainWindow):
                 path = self._recent_media[i]
                 if path.suffix.lower() in (".mp4", ".avi", ".mov", ".mkv"):
                     lbl.setPixmap(QPixmap())
-                    lbl.setText("🎬")
+                    lbl.setText(self.tr("🎬"))
                 else:
                     pix = QPixmap(str(path))
                     if not pix.isNull():
@@ -1739,13 +1783,13 @@ class MainWindow(QMainWindow):
                         lbl.setPixmap(pix)
                     else:
                         lbl.setPixmap(QPixmap())
-                        lbl.setText("🖼")
+                        lbl.setText(self.tr("🖼"))
                 lbl.setToolTip(str(path))
                 lbl.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
                 lbl.mousePressEvent = lambda ev, p=path: self._open_recent(p)
             else:
                 lbl.clear()
-                lbl.setToolTip("")
+                lbl.setToolTip(self.tr(""))
 
     def _open_recent(self, path: Path) -> None:
         if path.exists():
@@ -1764,10 +1808,10 @@ class MainWindow(QMainWindow):
         self._fullscreen = not self._fullscreen
         if self._fullscreen:
             self.showFullScreen()
-            self.btn_fullscreen.setText("Esci da schermo intero")
+            self.btn_fullscreen.setText(self.tr("Esci da schermo intero"))
         else:
             self.showNormal()
-            self.btn_fullscreen.setText("Schermo intero")
+            self.btn_fullscreen.setText(self.tr("Schermo intero"))
 
     # ------------------------------------------------------------------
     # Autostart
@@ -1827,10 +1871,26 @@ class MainWindow(QMainWindow):
         self.chk_autostart.setChecked(enabled)
         self.chk_autostart.blockSignals(False)
 
+    def _on_language_changed(self, index: int) -> None:
+        """Switch language: install the translator and rebuild the window."""
+        code = self.combo_language.itemData(index)
+        if not code or code == self._language:
+            return
+        self._language = code
+        self.settings.set("language", code)
+        from app.i18n import install as _install_language
+        _install_language(QApplication.instance(), code)
+        # _init_ui ricostruisce la finestra: ogni etichetta passa da self.tr(),
+        # quindi con il nuovo traduttore installato prende la lingua nuova.
+        self._init_ui()
+        self._show_status(
+            self.tr("Lingua cambiata in {name}").format(
+                name=self.combo_language.currentText()))
+
     def _on_autostart_changed(self, checked: bool) -> None:
         self.settings.set("autostart", checked)
         self._set_autostart(checked)
-        self._show_status("Avvio automatico " + ("abilitato" if checked else "disabilitato"))
+        self._show_status(self.tr("Avvio automatico ") + ("abilitato" if checked else "disabilitato"))
 
     # ------------------------------------------------------------------
     # Header / status
@@ -1962,12 +2022,23 @@ class MainWindow(QMainWindow):
                         "Inquadratura volto disattivata: impossibile caricare "
                         "i dati del riconoscimento.", error=True)
                 return frame
+            # Dimensione minima relativa al frame: un valore fisso in pixel
+            # perde i volti lontani sulle risoluzioni basse, ed è il motivo per
+            # cui l'inquadratura sembrava non funzionare.
+            min_side = min(frame.shape[:2])
+            min_size = (max(24, int(min_side * 0.07)),) * 2
             faces = cascade.detectMultiScale(
-                gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+                gray, scaleFactor=1.1, minNeighbors=4, minSize=min_size)
             logger.debug("Face framing: volti rilevati=%d", len(faces))
             self._face_failures = 0
             if len(faces) == 0:
+                if self._face_seen:
+                    self._face_seen = False
+                    self._show_status(self.tr("Inquadratura volto: nessun volto nel quadro"))
                 return frame
+            if not self._face_seen:
+                self._face_seen = True
+                self._show_status(self.tr("Inquadratura volto: volto rilevato"))
             x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
             cx, cy = x + w // 2, y + h // 2
             fh, fw = frame.shape[:2]
@@ -1984,7 +2055,7 @@ class MainWindow(QMainWindow):
                 self._face_framing_enabled = False
                 if getattr(self, "chk_face", None) is not None:
                     self.chk_face.setChecked(False)
-                self._show_status("Inquadratura volti disattivata dopo errori ripetuti",
+                self._show_status(self.tr("Inquadratura volti disattivata dopo errori ripetuti"),
                                   error=True)
             return frame
 
@@ -2029,7 +2100,7 @@ class MainWindow(QMainWindow):
         writer = cv2.VideoWriter(str(path), fourcc, 30, (w, h))
         if not writer.isOpened():
             logger.error("Impossibile creare il video time-lapse: codec non supportato")
-            self._show_status("Time-lapse: codec non supportato", error=True)
+            self._show_status(self.tr("Time-lapse: codec non supportato"), error=True)
             self._timelapse_frames = []
             return
         for frame in self._timelapse_frames:
@@ -2057,10 +2128,10 @@ class MainWindow(QMainWindow):
     def _start_streaming(self) -> None:
         url = self.txt_stream_url.text().strip()
         if not url:
-            self._show_status("Inserisci un URL di stream RTMP", error=True)
+            self._show_status(self.tr("Inserisci un URL di stream RTMP"), error=True)
             return
         if not url.startswith("rtmp://") and not url.startswith("rtmps://"):
-            self._show_status("URL RTMP non valido", error=True)
+            self._show_status(self.tr("URL RTMP non valido"), error=True)
             return
         self._stream_url = url
         self._stream_width = self._width
@@ -2089,7 +2160,7 @@ class MainWindow(QMainWindow):
                 stderr=subprocess.DEVNULL,
             )
         except FileNotFoundError:
-            self._show_status("ffmpeg non trovato: installa ffmpeg", error=True)
+            self._show_status(self.tr("ffmpeg non trovato: installa ffmpeg"), error=True)
             return
         except Exception as exc:
             self._show_status(f"Errore stream: {exc}", error=True)
@@ -2097,14 +2168,14 @@ class MainWindow(QMainWindow):
 
         self._streaming = True
         self._stream_frame_count = 0
-        self.btn_stream.setText("Ferma stream")
+        self.btn_stream.setText(self.tr("Ferma stream"))
         self.btn_stream.setObjectName("stop")
         self.btn_stream.style().unpolish(self.btn_stream)
         self.btn_stream.style().polish(self.btn_stream)
         self.combo_resolution.setEnabled(False)
         self.lbl_rec.show()
         self.lbl_rec.raise_()
-        self.lbl_rec.setText("● STREAM")
+        self.lbl_rec.setText(self.tr("● STREAM"))
         self._show_status(f"Stream avviato: {url}")
 
     def _stop_streaming(self) -> None:
@@ -2125,14 +2196,14 @@ class MainWindow(QMainWindow):
             self._stream_process = None
         self._streaming = False
         self._stream_frame_count = 0
-        self.btn_stream.setText("Avvia streaming")
+        self.btn_stream.setText(self.tr("Avvia streaming"))
         self.btn_stream.setObjectName("ghost")
         self.btn_stream.style().unpolish(self.btn_stream)
         self.btn_stream.style().polish(self.btn_stream)
         self.combo_resolution.setEnabled(True)
         if not self._recording:
             self.lbl_rec.hide()
-        self._show_status("Stream fermato")
+        self._show_status(self.tr("Stream fermato"))
 
     def _stream_frame(self, frame: np.ndarray) -> None:
         if not self._streaming or self._stream_process is None:
@@ -2149,9 +2220,9 @@ class MainWindow(QMainWindow):
                 self._stream_frame_count += 1
             except (BrokenPipeError, OSError):
                 self._streaming = False
-                self.btn_stream.setText("Avvia streaming")
+                self.btn_stream.setText(self.tr("Avvia streaming"))
                 if getattr(self, "btn_stream_footer", None) is not None:
-                    self.btn_stream_footer.setText("Avvia streaming")
+                    self.btn_stream_footer.setText(self.tr("Avvia streaming"))
                 self.btn_stream.setObjectName("ghost")
                 self.btn_stream.style().unpolish(self.btn_stream)
                 self.btn_stream.style().polish(self.btn_stream)
@@ -2159,7 +2230,7 @@ class MainWindow(QMainWindow):
                 if not self._recording:
                     self.lbl_rec.hide()
                 self._stream_process = None
-                self._show_status("Stream interrotto (connessione chiusa)", error=True)
+                self._show_status(self.tr("Stream interrotto (connessione chiusa)"), error=True)
 
     # ------------------------------------------------------------------
     # Social sharing
@@ -2190,7 +2261,7 @@ class MainWindow(QMainWindow):
         """
         path = self._last_media_path()
         if path is None or not path.exists():
-            self._show_status("Nessun file recente da copiare", error=True)
+            self._show_status(self.tr("Nessun file recente da copiare"), error=True)
             return
         if path.suffix.lower() not in (".jpg", ".jpeg", ".png", ".bmp"):
             self._show_status(
@@ -2209,7 +2280,7 @@ class MainWindow(QMainWindow):
         """Open the folder containing the last produced file."""
         path = self._last_media_path()
         if path is None or not path.exists():
-            self._show_status("Nessun file recente da mostrare", error=True)
+            self._show_status(self.tr("Nessun file recente da mostrare"), error=True)
             return
         folder = path.parent
         opened = QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))

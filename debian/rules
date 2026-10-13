@@ -28,5 +28,9 @@ override_dh_auto_install:
 	install -d $(CURDIR)/debian/mintcam/usr/share/mintcam
 	cp -r app README.md \
 		$(CURDIR)/debian/mintcam/usr/share/mintcam/
+
+	install -d $(CURDIR)/debian/mintcam/usr/share/mintcam/i18n
+	install -m 0644 i18n/*.qm \
+		$(CURDIR)/debian/mintcam/usr/share/mintcam/i18n/
 	find $(CURDIR)/debian/mintcam -name '__pycache__' -exec rm -rf {} +
 	find $(CURDIR)/debian/mintcam -name '*.pyc' -delete

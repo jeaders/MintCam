@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The version is pinned while the RFS (bug 1150664) is under review:
 # the sponsor reviews exactly this version, so it must not drift.
-VERSION="0.5.0"
+VERSION="0.7.0"
 REVISION="1"
 DEB_VERSION="${VERSION}-${REVISION}"
 GPG_KEY="419E898D54713D236E923E5CD3A8A804EB07BFF9"

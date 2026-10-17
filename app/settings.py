@@ -30,6 +30,7 @@ DEFAULTS: dict[str, Any] = {
     "focus_assist": False,
     "face_framing": False,
     "audio_enabled": False,
+    "audio_device": "",
     "background_blur": False,
     "blur_strength": 15,
     "motion_detection": False,

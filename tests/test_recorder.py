@@ -53,6 +53,79 @@ class RecorderTest(unittest.TestCase):
             self.assertTrue(ok)
 
 
+class AudioRecordingTest(unittest.TestCase):
+    """PulseAudio vs ALSA selection and audio_device passthrough."""
+
+    def _get_audio_part(self, cmd):
+        """Extract the audio input section: (-f <fmt>, -i <device>)."""
+        indices = [i for i, x in enumerate(cmd) if x == "-f"]
+        # Skip the video format (rawvideo) and the output format (mp4)
+        for idx in indices:
+            if cmd[idx + 1] in ("alsa", "pulse"):
+                return cmd[idx + 1], cmd[idx + 3]  # (format, device)
+        return None, None
+
+    def test_pulseaudio_used_when_available(self) -> None:
+        rec = Recorder()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch("shutil.which") as mock_which:
+            mock_which.return_value = "/usr/bin/pactl"
+            with patch("subprocess.Popen") as mock_popen:
+                proc = MagicMock()
+                proc.stderr = MagicMock()
+                mock_popen.return_value = proc
+                ok = rec.start(frame, Path("/tmp/test.mp4"), fps=30, audio=True)
+                self.assertTrue(ok)
+                cmd = mock_popen.call_args[0][0]
+                fmt, device = self._get_audio_part(cmd)
+                self.assertEqual(fmt, "pulse")
+                self.assertEqual(device, "@DEFAULT_SOURCE@")
+
+    def test_alsa_fallback_when_no_pulseaudio(self) -> None:
+        rec = Recorder()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch("shutil.which") as mock_which:
+            mock_which.return_value = None
+            with patch("subprocess.Popen") as mock_popen:
+                proc = MagicMock()
+                proc.stderr = MagicMock()
+                mock_popen.return_value = proc
+                ok = rec.start(frame, Path("/tmp/test.mp4"), fps=30, audio=True)
+                self.assertTrue(ok)
+                cmd = mock_popen.call_args[0][0]
+                fmt, device = self._get_audio_part(cmd)
+                self.assertEqual(fmt, "alsa")
+                self.assertEqual(device, "default")
+
+    def test_audio_device_override(self) -> None:
+        rec = Recorder()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch("shutil.which") as mock_which:
+            mock_which.return_value = "/usr/bin/pactl"
+            with patch("subprocess.Popen") as mock_popen:
+                proc = MagicMock()
+                proc.stderr = MagicMock()
+                mock_popen.return_value = proc
+                ok = rec.start(
+                    frame, Path("/tmp/test.mp4"), fps=30,
+                    audio=True, audio_device="alsa_input.usb-mic",
+                )
+                self.assertTrue(ok)
+                cmd = mock_popen.call_args[0][0]
+                fmt, device = self._get_audio_part(cmd)
+                self.assertEqual(fmt, "pulse")
+                self.assertEqual(device, "alsa_input.usb-mic")
+
+    def test_missing_ffmpeg_returns_false(self) -> None:
+        rec = Recorder()
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        with patch("shutil.which") as mock_which:
+            mock_which.return_value = "/usr/bin/pactl"
+            with patch("subprocess.Popen", side_effect=FileNotFoundError("no ffmpeg")):
+                ok = rec.start(frame, Path("/tmp/test.mp4"), fps=30, audio=True)
+                self.assertFalse(ok)
+
+
 if __name__ == "__main__":
     unittest.main()
 

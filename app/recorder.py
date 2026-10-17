@@ -29,8 +29,6 @@ def _to_float(value) -> Optional[float]:
         return None
     return number
 
-# TODO: handle case where ffmpeg is missing but audio=True (show error dialog?)
-
 
 class Recorder:
     def __init__(self) -> None:
@@ -45,7 +43,7 @@ class Recorder:
         self._height: int = 480
         self._fps: int = 30
 
-    def start(self, frame: np.ndarray, path: Path, fps: int = 30, audio: bool = False) -> bool:
+    def start(self, frame: np.ndarray, path: Path, fps: int = 30, audio: bool = False, audio_device: Optional[str] = None) -> bool:
         if self._writer is not None or self._ffmpeg_proc is not None:
             return False
         height, width = frame.shape[:2]
@@ -54,7 +52,7 @@ class Recorder:
         self._fps = int(fps)
         used_path = path.with_suffix(".mp4")
         if audio:
-            return self._start_with_audio(used_path, width, height, fps)
+            return self._start_with_audio(used_path, width, height, fps, audio_device)
         for fourcc_code in ("mp4v", "XVID", "MJPG"):
             try:
                 writer = cv2.VideoWriter(
@@ -74,7 +72,7 @@ class Recorder:
         logger.error("Nessun codec disponibile per la registrazione video")
         return False
 
-    def _start_with_audio(self, path: Path, width: int, height: int, fps: int) -> bool:
+    def _start_with_audio(self, path: Path, width: int, height: int, fps: int, audio_device: Optional[str] = None) -> bool:
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
@@ -94,10 +92,16 @@ class Recorder:
             "-f", "mp4",
             str(path),
         ]
-        # Linux Mint XFCE typically uses PulseAudio/ALSA shim. Try PulseAudio
-        # first (captures from the default input source), fall back to ALSA.
+        # Linux Mint XFCE typically uses PulseAudio/ALSA shim. Detect the
+        # audio backend and pick the right input device:
+        # - PulseAudio: use the user-selected source (or @DEFAULT_SOURCE@)
+        # - ALSA: use the user-selected device (or "default")
+        device = None
         if shutil.which("pactl") is not None:
-            ffmpeg_cmd[11:13] = ["-f", "pulse", "-i", "@DEFAULT_SOURCE@"]
+            device = audio_device or "@DEFAULT_SOURCE@"
+            ffmpeg_cmd[11:13] = ["-f", "pulse", "-i", device]
+        elif audio_device:
+            ffmpeg_cmd[12] = audio_device
         try:
             self._ffmpeg_proc = subprocess.Popen(
                 ffmpeg_cmd,

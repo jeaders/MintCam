@@ -45,6 +45,7 @@ from app.recorder import Recorder
 from app.settings import Settings
 from app.storage import Storage
 from app.ui.styles import apply_dark_theme
+from app.version import __version__
 
 logger = logging.getLogger("mintcam.ui")
 
@@ -136,6 +137,8 @@ class MainWindow(QMainWindow):
         self._fps_counter: int = 0
         self._fps_last_time: Optional[float] = None
         self._actual_fps: float = 0.0
+        self._update_checking: bool = False
+        self._audio_devices: list[tuple[str, str]] = []
 
         self._streaming: bool = False
         self._stream_process: Optional[subprocess.Popen] = None
@@ -544,6 +547,21 @@ class MainWindow(QMainWindow):
         self.chk_autostart.setStyleSheet("color: #9aa0ac; font-size: 12px;")
         self.chk_autostart.toggled.connect(self._on_autostart_changed)
         lay.addWidget(self.chk_autostart)
+
+        lay.addSpacing(6)
+        lay.addWidget(QLabel(self.tr("Dispositivo audio:")))
+        self.combo_audio_device = QComboBox()
+        self.combo_audio_device.setMinimumHeight(32)
+        self._refresh_audio_devices()
+        lay.addWidget(self.combo_audio_device)
+        self.combo_audio_device.currentIndexChanged.connect(self._on_audio_device_changed)
+
+        lay.addSpacing(6)
+        self.btn_check_update = QPushButton(self.tr("Cerca aggiornamenti"))
+        self.btn_check_update.setMinimumHeight(32)
+        self.btn_check_update.setObjectName("ghost")
+        lay.addWidget(self.btn_check_update)
+        self.btn_check_update.clicked.connect(self._on_check_update)
         return grp
 
     def _make_slider(self, minv: int, maxv: int, value: int, name: str) -> dict:
@@ -783,6 +801,7 @@ class MainWindow(QMainWindow):
         self._blur_strength = self.settings.get("blur_strength", 15)
         self._motion_detection = self.settings.get("motion_detection", False)
         self._motion_sensitivity = self.settings.get("motion_sensitivity", 20)
+        self._refresh_audio_devices()
         self.chk_mirror.setChecked(self._mirror)
 
         self.chk_grid.setChecked(self._grid)
@@ -1647,14 +1666,12 @@ class MainWindow(QMainWindow):
             return
         self._recording_frame_size = frame.shape[:2][::-1]
         path = Storage.recordings_dir() / Storage.video_filename()
-        # La fps misurata, non quella richiesta: se la webcam non arriva alla
-        # fps scelta, dichiarare quella scelta farebbe risultare il video
-        # velocizzato.
         measured = self.camera.measured_fps() if self.camera is not None else None
         record_fps = int(round(measured)) if measured else self._fps
         logger.info("Registrazione: fps richiesti %d, misurati %s, uso %d",
                     self._fps, measured, record_fps)
-        ok = self.recorder.start(frame, path, fps=record_fps, audio=self._audio_enabled)
+        _audio_device = self.settings.get("audio_device") or None
+        ok = self.recorder.start(frame, path, fps=record_fps, audio=self._audio_enabled, audio_device=_audio_device)
         if not ok:
             self._show_status(self.tr("Impossibile avviare la registrazione: codec non disponibile"), error=True)
             return
@@ -1891,6 +1908,99 @@ class MainWindow(QMainWindow):
         self.settings.set("autostart", checked)
         self._set_autostart(checked)
         self._show_status(self.tr("Avvio automatico ") + ("abilitato" if checked else "disabilitato"))
+
+    def _refresh_audio_devices(self) -> None:
+        """Populate the audio device combo from the system, keeping selection."""
+        from app.audio import list_audio_sources, has_pulseaudio
+        self.combo_audio_device.blockSignals(True)
+        self.combo_audio_device.clear()
+        self._audio_devices: list[tuple[str, str]] = []
+        if has_pulseaudio():
+            self._audio_devices = list_audio_sources()
+            if self._audio_devices:
+                for _name, _label in self._audio_devices:
+                    self.combo_audio_device.addItem(_label, _name)
+            else:
+                self.combo_audio_device.addItem(
+                    self.tr("Nessun dispositivo disponibile"), "")
+        else:
+            self.combo_audio_device.addItem(self.tr("Predefinito (ALSA)"), "default")
+        self.combo_audio_device.blockSignals(False)
+
+        _saved = self.settings.get("audio_device")
+        if _saved:
+            _idx = self.combo_audio_device.findData(_saved)
+            if _idx >= 0:
+                self.combo_audio_device.setCurrentIndex(_idx)
+
+    def _on_audio_device_changed(self, index: int) -> None:
+        device = self.combo_audio_device.itemData(index) or ""
+        self.settings.set("audio_device", device)
+        self._show_status(self.tr("Dispositivo audio selezionato"))
+
+    def _on_check_update(self) -> None:
+        """Check GitHub releases for a newer version."""
+        import json as _json
+        import urllib.request as _urlrequest
+        self._update_checking = True
+        self.btn_check_update.setEnabled(False)
+        self.btn_check_update.setText(self.tr("Ricerca..."))
+
+        def _check() -> None:
+            latest = None
+            error = False
+            try:
+                req = _urlrequest.Request(
+                    "https://api.github.com/repos/jeaders/MintCam/releases/latest",
+                    headers={"User-Agent": "MintCam"},
+                )
+                with _urlrequest.urlopen(req, timeout=10) as resp:
+                    data = _json.loads(resp.read().decode("utf-8"))
+                latest = data.get("tag_name", "").lstrip("v")
+            except Exception as exc:
+                logger.warning("Update check failed: %s", exc)
+                error = True
+
+            def _finish() -> None:
+                self._update_checking = False
+                self.btn_check_update.setEnabled(True)
+                self.btn_check_update.setText(self.tr("Cerca aggiornamenti"))
+                if error:
+                    self._show_status(self.tr("Impossibile verificare gli aggiornamenti"), error=True)
+                elif latest and self._newer_version_available(latest):
+                    self._show_status(self.tr("Aggiornamento disponibile: v") + latest)
+                    self._show_update_dialog(latest)
+                else:
+                    self._show_status(self.tr("Sei aggiornato alla v") + __version__)
+
+            QTimer.singleShot(0, _finish)
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _newer_version_available(self, latest: str) -> bool:
+        """Returns True if latest is newer than current __version__."""
+        try:
+            from packaging.version import Version
+            return Version(latest) > Version(__version__)
+        except Exception:
+            # Simple string fallback
+            return latest != __version__
+
+    def _show_update_dialog(self, latest: str) -> None:
+        from PyQt6.QtWidgets import QMessageBox
+        msg = QMessageBox(self)
+        msg.setWindowTitle(self.tr("Aggiornamento disponibile"))
+        msg.setText(
+            self.tr("MintCam v{latest} è disponibile (ora su v{current}).\n\n"
+                    "Visita GitHub per scaricare l'aggiornamento.").format(
+                latest=latest, current=__version__))
+        msg.setIcon(QMessageBox.Icon.Information)
+        btn = msg.addButton(self.tr("Apri GitHub"), QMessageBox.ButtonRole.AcceptRole)
+        msg.addButton(QMessageBox.StandardButton.Cancel)
+        if msg.exec() == QMessageBox.ButtonRole.AcceptRole:
+            import webbrowser
+            webbrowser.open("https://github.com/jeaders/MintCam/releases/latest")
+        self._show_status(self.tr("Verifica aggiornamenti completata"))
 
     # ------------------------------------------------------------------
     # Header / status

@@ -208,6 +208,13 @@ The package will be created in `dist/`.
 
 ## Changelog
 
+### 0.8.0
+
+- Audio recording fix for Linux Mint XFCE (PulseAudio detection)
+- Audio device selection (choose specific microphone)
+- Check for updates button (GitHub releases API)
+- Fixed stale maintainer email in packaging metadata
+
 ### 0.2.0
 
 - Renamed the desktop and appdata ids to `mintcam` to match the `.desktop` file

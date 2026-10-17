@@ -1,3 +1,16 @@
+mintcam (0.8.0) noble; urgency=medium
+
+  * Audio recording fix for Linux Mint XFCE: detect PulseAudio via pactl and
+    use @DEFAULT_SOURCE@ instead of hardcoding ALSA "default", which silently
+    captures silence on systems with the PulseAudio/ALSA shim.
+  * Audio device selection: users can now pick a specific microphone from the
+    General settings card instead of always using the default.
+  * Check for updates button: queries the GitHub releases API and shows a
+    dialog with a link when a newer version is available.
+  * Fixed stale maintainer email in packaging metadata.
+
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Sat, 17 Oct 2026 19:30:00 +0200
+
 mintcam (0.7.0) noble; urgency=medium
 
   * Language selection: Italian and English, pickable from the General card and

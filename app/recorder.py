@@ -1,5 +1,6 @@
 import logging
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -88,14 +89,15 @@ class Recorder:
             "-preset", "ultrafast",
             "-c:a", "aac",
             "-shortest",
-            # ebur128 makes ffmpeg log the momentary loudness and the true peak
-            # on stderr, which is how the app draws the level meter without
-            # capturing the audio a second time. It does not change the output.
             "-af", "ebur128=peak=true",
             "-pix_fmt", "yuv420p",
             "-f", "mp4",
             str(path),
         ]
+        # Linux Mint XFCE typically uses PulseAudio/ALSA shim. Try PulseAudio
+        # first (captures from the default input source), fall back to ALSA.
+        if shutil.which("pactl") is not None:
+            ffmpeg_cmd[11:13] = ["-f", "pulse", "-i", "@DEFAULT_SOURCE@"]
         try:
             self._ffmpeg_proc = subprocess.Popen(
                 ffmpeg_cmd,

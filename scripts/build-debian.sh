@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The version is pinned while the RFS (bug 1150664) is under review:
 # the sponsor reviews exactly this version, so it must not drift.
-VERSION="0.8.0"
+VERSION="0.8.1"
 REVISION="1"
 DEB_VERSION="${VERSION}-${REVISION}"
 GPG_KEY="419E898D54713D236E923E5CD3A8A804EB07BFF9"
@@ -55,7 +55,7 @@ cat > debian/changelog <<EOF
 mintcam (${DEB_VERSION}) UNRELEASED; urgency=medium
 
   * Initial Debian packaging (Closes: #1150659): webcam application, MIT,
-    built from the 0.2.3 upstream release.
+    built from the 0.8.1 upstream release.
   * Use the Python modules from the archive: python3-pyqt6, python3-opencv,
     python3-numpy, python3-pil, python3-pyzbar. The previous revision shipped
     requirements.txt and pip-installed it into a per-user virtualenv on first

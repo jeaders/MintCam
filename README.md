@@ -71,8 +71,8 @@ and install:
 
 ```bash
 # Direct download of the current release
-wget https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.7.0_all.deb
-sudo apt install ./mintcam_0.7.0_all.deb
+wget https://github.com/jeaders/MintCam/releases/latest/download/mintcam_0.8.1_all.deb
+sudo apt install ./mintcam_0.8.1_all.deb
 ```
 
 `apt install ./...` resolves the dependencies (`v4l-utils`, `ffmpeg`,
@@ -207,6 +207,14 @@ MintCam/
 The package will be created in `dist/`.
 
 ## Changelog
+
+### 0.8.1
+
+- Critical fix: ffmpeg command indices were wrong in audio recording, causing
+  silent audio in all recordings on PulseAudio systems
+- Fixed motion detection auto-stop when recording starts manually
+- Fixed audio level meter overlapping with REC indicator
+- Fixed audio device enumeration
 
 ### 0.8.0
 

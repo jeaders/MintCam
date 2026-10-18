@@ -1,4 +1,15 @@
-mintcam (0.8.0) noble; urgency=medium
+mintcam (0.8.1) noble; urgency=medium
+
+  * Critical fix: ffmpeg command indices were wrong in _start_with_audio(),
+    corrupting the video input pipe:0 and causing a BrokenPipeError, which
+    resulted in silent audio in all recordings on PulseAudio systems.
+  * Fix motion detection auto-stop: recording would immediately stop when
+    started manually while motion detection was enabled, because the timer
+    was initialized to 0.0.
+  * Fix audio level meter overlapping with REC indicator text.
+  * Fix audio device enumeration (pactl JSON API uses lowercase keys).
+
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Sat, 18 Oct 2026 12:00:00 +0200
 
   * Audio recording fix for Linux Mint XFCE: detect PulseAudio via pactl and
     use @DEFAULT_SOURCE@ instead of hardcoding ALSA "default", which silently

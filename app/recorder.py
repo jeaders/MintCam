@@ -96,12 +96,17 @@ class Recorder:
         # audio backend and pick the right input device:
         # - PulseAudio: use the user-selected source (or @DEFAULT_SOURCE@)
         # - ALSA: use the user-selected device (or "default")
-        device = None
+        #
+        # ffmpeg_cmd layout:
+        #   [10] -i       [11] pipe:0        (video input)
+        #   [12] -f       [13] alsa          (audio format)
+        #   [14] -i       [15] default       (audio device)
         if shutil.which("pactl") is not None:
             device = audio_device or "@DEFAULT_SOURCE@"
-            ffmpeg_cmd[11:13] = ["-f", "pulse", "-i", device]
+            ffmpeg_cmd[13] = "pulse"      # audio format
+            ffmpeg_cmd[15] = device        # audio device
         elif audio_device:
-            ffmpeg_cmd[12] = audio_device
+            ffmpeg_cmd[15] = audio_device  # override ALSA device
         try:
             self._ffmpeg_proc = subprocess.Popen(
                 ffmpeg_cmd,

@@ -1363,6 +1363,10 @@ class MainWindow(QMainWindow):
             return
         if not self._recording:
             return
+        if self._motion_last_detected == 0.0:
+            # Recording started manually (not by motion): reset the timer
+            self._motion_last_detected = time.time()
+            return
         elapsed = time.time() - self._motion_last_detected
         if elapsed >= 10.0:
             self._stop_recording()
@@ -1460,8 +1464,8 @@ class MainWindow(QMainWindow):
                 (self.preview.height() - self.lbl_countdown.height()) // 2,
             )
         if hasattr(self, "lbl_rec"):
-            self.lbl_rec.move(12, self.preview.height() - 36)
             self.lbl_rec.adjustSize()
+            self.lbl_rec.move(12, self.preview.height() - 36)
             self.lbl_rec.raise_()
         if hasattr(self, "lbl_level"):
             self.lbl_level.adjustSize()

@@ -40,15 +40,20 @@ def list_audio_sources() -> list[tuple[str, str]]:
                 sources = _json.loads(output)
                 result: list[tuple[str, str]] = []
                 for src in sources:
-                    name = src.get("Name", "")
-                    desc = src.get("Description", name)
-                    # only sources that can actually record
-                    if src.get("MonitorOfSinkName") and src.get("MonitorOfSinkName"):
+                    name = src.get("name", "")
+                    desc = src.get("description") or name
+                    # Skip monitor sources (output monitoring, not a mic)
+                    props = src.get("properties", {})
+                    if props.get("device.class") == "monitor":
                         continue
-                    if src.get("State") != "RUNNING" and src.get("State") != "IDLE" and src.get("State") != "SUSPENDED":
+                    # Only real input sources (media.class contains "Source")
+                    media_class = props.get("media.class", "")
+                    if "Source" not in media_class:
                         continue
-                    mute = src.get("Mute", False)
-                    if mute:
+                    state = src.get("state", "")
+                    if state not in ("RUNNING", "IDLE", "SUSPENDED"):
+                        continue
+                    if src.get("mute", False):
                         continue
                     result.append((name, desc or name))
                 if result:

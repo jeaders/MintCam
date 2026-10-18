@@ -10,6 +10,10 @@ __pycache__/
 dist/
 build/
 build-deb/
+*.dsc
+*.tar.xz
+*.buildinfo
+*.changes
 logs/
 recordings/
 photos/

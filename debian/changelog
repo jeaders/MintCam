@@ -1,3 +1,15 @@
+mintcam (0.8.2) noble; urgency=medium
+
+  * Fix motion detection auto-stop when starting recording manually.
+  * Fix audio level meter label overlapping with REC indicator.
+  * Fix audio device enumeration: pactl JSON uses lowercase keys and
+    device.class property to distinguish real inputs from monitor sources.
+  * Add fullscreen reposition for overlay labels after toggling fullscreen.
+  * Add audio settings (audio_enabled, background_blur) to preset system.
+  * Translate preset UI strings.
+
+ -- Alex Mirici <jeaders@users.noreply.github.com>  Sun, 19 Oct 2026 15:00:00 +0200
+
 mintcam (0.8.1) noble; urgency=medium
 
   * Critical fix: ffmpeg command indices were wrong in _start_with_audio(),

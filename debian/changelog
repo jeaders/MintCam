@@ -11,6 +11,8 @@ mintcam (0.8.1) noble; urgency=medium
 
  -- Alex Mirici <jeaders@users.noreply.github.com>  Sat, 18 Oct 2026 12:00:00 +0200
 
+mintcam (0.8.0) noble; urgency=medium
+
   * Audio recording fix for Linux Mint XFCE: detect PulseAudio via pactl and
     use @DEFAULT_SOURCE@ instead of hardcoding ALSA "default", which silently
     captures silence on systems with the PulseAudio/ALSA shim.
@@ -20,7 +22,7 @@ mintcam (0.8.1) noble; urgency=medium
     dialog with a link when a newer version is available.
   * Fixed stale maintainer email in packaging metadata.
 
- -- Alex Mirici <jeaders@users.noreply.github.com>  Sat, 17 Oct 2026 19:30:00 +0200
+  -- Alex Mirici <jeaders@users.noreply.github.com>  Sat, 17 Oct 2026 19:30:00 +0200
 
 mintcam (0.7.0) noble; urgency=medium
 

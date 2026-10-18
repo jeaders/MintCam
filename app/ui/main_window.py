@@ -1379,7 +1379,7 @@ class MainWindow(QMainWindow):
         self._presets = self.settings.get_presets()
         self.combo_preset.blockSignals(True)
         self.combo_preset.clear()
-        self.combo_preset.addItem("Predefinito", "<default>")
+        self.combo_preset.addItem(self.tr("Predefinito"), "<default>")
         for name in sorted(self._presets.keys()):
             self.combo_preset.addItem(name, name)
         self.combo_preset.blockSignals(False)
@@ -1398,11 +1398,13 @@ class MainWindow(QMainWindow):
             "grid": self.chk_grid.isChecked(),
             "blur_strength": self.slider_blur["slider"].value(),
             "burst_count": burst_map.get(self.combo_burst.currentIndex(), 1),
+            "audio_enabled": self.chk_audio.isChecked(),
+            "background_blur": self.chk_blur_bg.isChecked(),
         }
 
     def _save_preset(self) -> None:
         from PyQt6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Salva preset", "Nome preset:")
+        name, ok = QInputDialog.getText(self, self.tr("Salva preset"), self.tr("Nome preset:"))
         if not ok or not name.strip():
             return
         name = name.strip()
@@ -1434,6 +1436,8 @@ class MainWindow(QMainWindow):
         self.chk_mirror.setChecked(values.get("mirror", False))
         self.chk_grid.setChecked(values.get("grid", False))
         self.slider_blur["slider"].setValue(values.get("blur_strength", 15))
+        self.chk_audio.setChecked(values.get("audio_enabled", False))
+        self.chk_blur_bg.setChecked(values.get("background_blur", False))
         burst_map = {1: 0, 3: 1, 5: 2, 10: 3}
         self.combo_burst.setCurrentIndex(burst_map.get(values.get("burst_count", 1), 0))
         wh = RESOLUTIONS.get(self.combo_resolution.currentText(), (640, 480))
@@ -1465,11 +1469,11 @@ class MainWindow(QMainWindow):
             )
         if hasattr(self, "lbl_rec"):
             self.lbl_rec.adjustSize()
-            self.lbl_rec.move(12, self.preview.height() - 36)
+            self.lbl_rec.move(12, self.preview.height() - self.lbl_rec.height() - 12)
             self.lbl_rec.raise_()
         if hasattr(self, "lbl_level"):
             self.lbl_level.adjustSize()
-            self.lbl_level.move(12, self.preview.height() - 36 - self.lbl_level.height() - 8)
+            self.lbl_level.move(12, self.preview.height() - self.lbl_rec.height() - self.lbl_level.height() - 20)
             self.lbl_level.raise_()
         if hasattr(self, "flash"):
             self.flash.setGeometry(self.preview_container.rect())
@@ -1833,6 +1837,8 @@ class MainWindow(QMainWindow):
         else:
             self.showNormal()
             self.btn_fullscreen.setText(self.tr("Schermo intero"))
+        # Reposition overlays (REC/labels) for the new preview size
+        QTimer.singleShot(100, self._adjust_overlays)
 
     # ------------------------------------------------------------------
     # Autostart

@@ -1,13 +1,13 @@
 Package: mintcam
-Version: 0.8.1
+Version: 0.8.2
 Architecture: all
 Maintainer: Alex Mirici <jeaders@users.noreply.github.com>
 Depends: python3 (>= 3.10), python3-pyqt6, python3-opencv, python3-numpy, python3-pil, python3-pyzbar, v4l-utils, ffmpeg, libxcb-cursor0, libzbar0, opencv-data
-Filename: pool/main/m/mintcam/mintcam_0.8.1_all.deb
-Size: 526504
-MD5sum: 82f8172a8e9efd5297453de592d20ab2
-SHA1: 84d5b0516cc5029a8733e00fb39bdb08a11cabf7
-SHA256: c00dad2fc16ca564962cb66209b60a6d0117826b06815cad981b504232bca257
+Filename: pool/main/m/mintcam/mintcam_0.8.2_all.deb
+Size: 526784
+MD5sum: 3aef33c8fae72ba5ac271d07fa39902f
+SHA1: 8637509e6b32d870402771bc7801d74adeaf10cd
+SHA256: b76d57d10f3d6ba0d0e941a0cb390899fd803563d01d1705f286a5ad11a68670
 Section: video
 Priority: optional
 Homepage: https://github.com/jeaders/MintCam
